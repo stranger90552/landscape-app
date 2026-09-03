@@ -2,80 +2,160 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>iPlants圖解植栽設計 - API 串接版</title>
+    <title>iPlants圖解植栽設計 - 案例展覽館</title>
     <style>
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; background: #f4f6f8; }
-        #case-selection-view { width: 100%; height: 100vh; box-sizing: border-box; padding: 40px 20px; overflow-y: auto; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); display: flex; flex-direction: column; align-items: center; position: relative; }
+        html, body { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; 
+            user-select: none; background: #f4f6f8;
+        }
+
+        /* 模式控制：非管理員時隱藏編輯按鈕 */
+        body:not(.is-admin) .admin-only {
+            display: none !important;
+        }
+
+        /* 1. 第一層：案例選擇頁面 */
+        #case-selection-view {
+            width: 100%; height: 100vh; box-sizing: border-box;
+            padding: 40px 20px; overflow-y: auto;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            display: flex; flex-direction: column; align-items: center; position: relative;
+        }
         .main-action-bar { position: absolute; top: 20px; right: 25px; display: flex; gap: 10px; z-index: 10; }
         .header-title { text-align: center; margin-bottom: 30px; margin-top: 10px; color: #1b5e20; }
-        .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px; max-width: 1200px; width: 100%; margin-bottom: 40px; }
-        .case-card { background: rgba(255, 255, 255, 0.95); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.08); transition: transform 0.3s; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; border: 2px solid transparent; }
-        .case-card:hover { transform: translateY(-8px); border-color: #4caf50; background: #ffffff; }
-        .case-card-banner { width: 100%; height: 160px; position: relative; background: #a5d6a7; overflow: hidden; }
-        .case-card-banner img { width: 100%; height: 100%; object-fit: cover; }
-        .case-card-icon-badge { position: absolute; bottom: -20px; left: 20px; width: 50px; height: 50px; background: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 2px solid #a5d6a7; }
-        .case-card-body { padding: 30px 20px 20px 20px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
-        .case-card h3 { font-size: 20px; color: #2e7d32; margin: 0 0 10px 0; }
-        .case-card p { font-size: 14px; color: #555; line-height: 1.5; margin-bottom: 15px; }
-        .case-card .enter-btn { background: #2e7d32; color: white; padding: 10px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; border: none; cursor: pointer; width: 100%; }
+        .header-title h1 { font-size: 32px; margin-bottom: 8px; }
+        .header-title p { font-size: 16px; color: #388e3c; margin: 0; }
 
+        .cards-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px; max-width: 1200px; width: 100%; margin-bottom: 40px;
+        }
+        .case-card {
+            background: rgba(255, 255, 255, 0.95); border-radius: 16px; overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08); transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer; display: flex; flex-direction: column; justify-content: space-between;
+            border: 2px solid transparent; position: relative;
+        }
+        .case-card:hover { transform: translateY(-8px); box-shadow: 0 12px 30px rgba(0,0,0,0.15); border-color: #4caf50; background: #ffffff; }
+        .case-card-banner { width: 100%; height: 160px; position: relative; background: #a5d6a7; overflow: hidden; }
+        .case-card-banner img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; }
+        .case-card:hover .case-card-banner img { transform: scale(1.05); }
+        .case-card-icon-badge {
+            position: absolute; bottom: -20px; left: 20px; width: 50px; height: 50px;
+            background: #ffffff; border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; font-size: 28px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 2px solid #a5d6a7;
+        }
+        .case-card-body { padding: 30px 20px 20px 20px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
+        .case-card-header { display: flex; justify-content: flex-end; margin-bottom: 8px; min-height: 24px; }
+        .case-card-actions { display: flex; gap: 6px; }
+        .case-card h3 { font-size: 20px; color: #2e7d32; margin: 0 0 10px 0; }
+        .case-card p { font-size: 14px; color: #555; line-height: 1.5; margin-bottom: 15px; flex-grow: 1; }
+        .case-card .enter-btn {
+            background: #2e7d32; color: white; padding: 10px 16px; border-radius: 20px;
+            font-size: 14px; font-weight: bold; text-align: center; border: none; cursor: pointer; transition: background 0.2s; width: 100%;
+        }
+        .case-card .enter-btn:hover { background: #1b5e20; }
+
+        /* 2. 第二層：地圖圖解視圖 */
         #garden-view { display: none; position: relative; width: 100%; height: 100vh; }
         .fullscreen-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: #c8e6c9; }
-        .fullscreen-bg img { width: 100%; height: 100%; object-fit: cover; }
-        .hotspot { position: absolute; width: 42px; height: 42px; background: rgba(255, 255, 255, 0.9); border: 2px solid #2e7d32; border-radius: 50%; cursor: pointer; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.25); z-index: 2; }
-        .hotspot.dragging { background: #fff3e0 !important; border-color: #ff9100 !important; transform: translate(-50%, -50%) scale(1.3) !important; z-index: 3; }
+        .fullscreen-bg img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-        .floating-action-bar { position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(255, 255, 255, 0.9); padding: 10px 18px; border-radius: 30px; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; }
+        .hotspot {
+            position: absolute; width: 42px; height: 42px; background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #2e7d32; border-radius: 50%; cursor: pointer; transform: translate(-50%, -50%);
+            display: flex; align-items: center; justify-content: center; font-size: 24px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25); transition: transform 0.1s ease, background 0.2s ease; z-index: 2;
+        }
+        .hotspot:hover { background: #e8f5e9; transform: translate(-50%, -50%) scale(1.2); }
+
+        .floating-action-bar {
+            position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(255, 255, 255, 0.9);
+            padding: 10px 18px; border-radius: 30px; backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px;
+        }
         .floating-action-bar h1 { margin: 0; font-size: 18px; color: #1b5e20; }
-        .click-hint-banner { display: none; position: absolute; top: 25px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(0, 0, 0, 0.8); color: #fff; padding: 10px 24px; border-radius: 20px; font-size: 15px; font-weight: bold; }
+        .click-hint-banner {
+            display: none; position: absolute; top: 25px; left: 50%; transform: translateX(-50%); z-index: 15;
+            background: rgba(0, 0, 0, 0.8); color: #fff; padding: 10px 24px; border-radius: 20px;
+            font-size: 15px; font-weight: bold; animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
 
-        .sidebar-card { display: none; position: absolute; top: 0; right: 0; width: 380px; height: 100vh; z-index: 20; background: rgba(255, 255, 255, 0.95); box-shadow: -5px 0 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); box-sizing: border-box; padding: 30px 25px; overflow-y: auto; }
-        .center-popup-card { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 25; width: 90%; max-width: 550px; background: rgba(255, 255, 255, 0.95); border-radius: 16px; padding: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+        .sidebar-card {
+            display: none; position: absolute; top: 0; right: 0; width: 380px; height: 100vh; z-index: 20;
+            background: rgba(255, 255, 255, 0.95); box-shadow: -5px 0 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px);
+            box-sizing: border-box; padding: 30px 25px; overflow-y: auto;
+        }
+        .center-popup-card {
+            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 25;
+            width: 90%; max-width: 550px; background: rgba(255, 255, 255, 0.95); border-radius: 16px; padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3); backdrop-filter: blur(5px);
+        }
+
+        .detail-content { display: flex; flex-direction: column; gap: 15px; margin-top: 15px; }
+        .detail-image-link { display: block; text-decoration: none; overflow: hidden; border-radius: 8px; }
+        .detail-image-link img { width: 100%; max-height: 250px; object-fit: cover; border-radius: 8px; }
+        .popup-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
 
         .btn { background: #2e7d32; color: white; border: none; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: bold; }
+        .btn:hover { background: #1b5e20; }
         .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 12px; }
         .btn-back { background: #616161; }
         .btn-warning { background: #f57c00; }
         .btn-danger { background: #d32f2f; }
-        .btn-admin { background: #1565c0; }
         .close-btn { float: right; background: #e0e0e0; color: #333; padding: 5px 12px; border-radius: 15px; font-size: 12px; border: none; cursor: pointer; }
 
-        .form-group { margin-bottom: 14px; }
+        .form-group { margin-bottom: 14px; text-align: left; }
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #1b5e20; font-size: 14px; }
         .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-
-        .admin-only { display: none; }
-        .mode-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
-        .mode-visitor { background: #e0e0e0; color: #424242; }
-        .mode-admin { background: #e3f2fd; color: #1565c0; }
     </style>
 </head>
 <body>
 
+    <!-- 1. 第一層：案例選擇頁面 -->
     <div id="case-selection-view">
         <div class="main-action-bar">
-            <span id="role-badge" class="mode-badge mode-visitor">👀 純瀏覽模式</span>
-            <button class="btn btn-admin" id="auth-btn" onclick="toggleAdminMode()">🔐 管理員登入</button>
-            <button class="btn admin-only" onclick="openCaseForm(-1)">➕ 新增案例</button>
+            <button class="btn btn-warning" id="admin-toggle-btn" onclick="toggleAdminMode()">🔐 管理員登入</button>
+            <button class="btn admin-only" onclick="openCaseForm(null)">➕ 新增案例</button>
         </div>
+
         <div class="header-title">
             <h1>🌿 iPlants 圖解植栽設計展覽館</h1>
-            <p>請點擊案例進行探索</p>
+            <p>請選擇您想要探索的案例（目前為訪客瀏覽模式）</p>
         </div>
+
         <div class="cards-grid" id="cases-container"></div>
 
+        <!-- 案例新增/編輯彈窗 -->
         <div id="case-modal" class="center-popup-card">
             <button class="close-btn" onclick="closeOverlay('case-modal')">關閉 ❌</button>
-            <h3 id="case-form-title" style="margin-top:0; color:#1b5e20;">➕ 新增案例</h3>
+            <h3 id="case-form-title" style="margin-top: 0; color: #1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 8px;">➕ 新增案例</h3>
             <input type="hidden" id="case-edit-id" value="">
-            <div class="form-group"><label>案例名稱：</label><input type="text" id="case-title-input"></div>
-            <div class="form-group"><label>圖示 (Emoji)：</label><input type="text" id="case-icon-input" value="🏡"></div>
-            <div class="form-group"><label>案例簡介：</label><textarea id="case-desc-input" rows="3"></textarea></div>
-            <div class="form-group"><label>背景圖片：</label><input type="text" id="case-bg-input" placeholder="圖片網址"></div>
-            <button class="btn" onclick="saveCase()" style="width:100%; margin-top:10px; padding:10px;">💾 儲存案例</button>
+
+            <div class="form-group">
+                <label>案例名稱：</label>
+                <input type="text" id="case-title-input" placeholder="例如：北歐風陽台景觀">
+            </div>
+            <div class="form-group">
+                <label>圖示 (Emoji)：</label>
+                <input type="text" id="case-icon-input" placeholder="例如：🏡, 🌿, 🌵">
+            </div>
+            <div class="form-group">
+                <label>案例簡介：</label>
+                <textarea id="case-desc-input" rows="3" placeholder="簡短描述這個案例的風格..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>背景地圖圖檔網址 (URL)：</label>
+                <input type="text" id="case-bg-input" placeholder="https://images.unsplash.com/...">
+            </div>
+
+            <button class="btn" onclick="saveCase()" style="width: 100%; margin-top: 10px; padding: 10px;">💾 儲存案例</button>
         </div>
     </div>
 
+    <!-- 2. 第二層：案例地圖視圖 -->
     <div id="garden-view">
         <div class="floating-action-bar">
             <button class="btn btn-back" onclick="backToCaseSelection()">⬅️ 返回案例列表</button>
@@ -83,34 +163,49 @@
             <button class="btn admin-only" id="add-btn" onclick="startSelectLocationMode()">➕ 新增植物</button>
         </div>
 
-        <div id="click-hint" class="click-hint-banner">📍 請在地圖上點選要擺放植物的位置...</div>
+        <div id="click-hint" class="click-hint-banner">📍 請在全螢幕地圖上，直接用滑鼠點選要擺放的位置...</div>
 
         <div class="fullscreen-bg" id="map-area">
-            <img id="bg-map-img" src="" alt="花園地圖">
+            <img id="bg-map-img" src="" alt="花園全螢幕總覽圖" onerror="this.style.display='none';">
         </div>
 
+        <!-- 植物詳細資料彈窗 -->
         <div id="detail-card" class="center-popup-card">
             <button class="close-btn" onclick="closeOverlay('detail-card')">關閉 ❌</button>
-            <h2 style="margin-top:0; color:#2e7d32;"><span id="detail-icon"></span> <span id="detail-title"></span></h2>
-            <div style="display:flex; flex-direction:column; gap:10px;">
-                <img id="detail-img" src="" style="width:100%; max-height:220px; object-fit:cover; border-radius:8px;">
-                <p><strong>📌 植物特徵：</strong><br><span id="detail-desc"></span></p>
-                <p><strong>☀️ 照顧指南：</strong><br><span id="detail-care"></span></p>
+            <h2 style="margin-top: 0; color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 5px;">
+                <span id="detail-icon"></span><span id="detail-title">植物名稱</span>
+            </h2>
+            <div class="detail-content">
+                <a id="detail-link" href="#" target="_blank" class="detail-image-link">
+                    <img id="detail-img" src="" alt="植物照片">
+                </a>
+                <div class="detail-info">
+                    <p><strong>📌 植物特徵：</strong><br><span id="detail-desc">說明...</span></p>
+                    <p><strong>☀️ 照顧指南：</strong><br><span id="detail-care">指南...</span></p>
+                </div>
             </div>
-            <div class="admin-only" style="display:flex; gap:10px; margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
-                <button class="btn btn-warning" onclick="editCurrentPlant()">✏️ 編輯資料</button>
-                <button class="btn btn-danger" onclick="deleteCurrentPlant()">🗑️ 刪除</button>
+            <div class="popup-footer">
+                <div class="admin-only" style="display: flex; gap: 8px;">
+                    <button class="btn btn-warning" onclick="editCurrentPlant()">✏️ 編輯資料</button>
+                    <button class="btn btn-danger" onclick="deleteCurrentPlant()">🗑️ 刪除</button>
+                </div>
+                <span style="font-size: 11px; color: #999;">iPlants 植栽設計展覽館</span>
             </div>
         </div>
 
+        <!-- 植物新增/編輯側邊欄表單 -->
         <div id="form-card" class="sidebar-card">
             <button class="close-btn" onclick="cancelAddMode()">取消 ❌</button>
-            <h3 id="form-title" style="margin-top:0; color:#1b5e20;">🌱 填寫植物資料</h3>
+            <h3 id="form-title" style="margin-top: 0; color: #1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 8px;">🌱 填寫植物資料</h3>
+            
             <input type="hidden" id="edit-plant-id" value="">
 
-            <div class="form-group"><label>植物名稱：</label><input type="text" id="new-name" placeholder="例如：龜背竹"></div>
             <div class="form-group">
-                <label>地圖圖示：</label>
+                <label>植物名稱：</label>
+                <input type="text" id="new-name" placeholder="例如：琴葉榕">
+            </div>
+            <div class="form-group">
+                <label>縮圖樣式 (Emoji)：</label>
                 <select id="new-icon">
                     <option value="🌸">🌸 小花款式</option>
                     <option value="🌿">🌿 小草款式</option>
@@ -118,158 +213,217 @@
                     <option value="🌳">🌳 大樹款式</option>
                 </select>
             </div>
-            <div class="form-group"><label>植物圖片網址：</label><input type="text" id="new-img"></div>
-            <div class="form-group"><label>外觀特徵說明：</label><textarea id="new-desc" rows="2"></textarea></div>
-            <div class="form-group"><label>照顧指南：</label><textarea id="new-care" rows="2"></textarea></div>
+            <div class="form-group">
+                <label>植物圖片網址 (URL)：</label>
+                <input type="text" id="new-img" placeholder="https://images.unsplash.com/...">
+            </div>
+            <div class="form-group">
+                <label>外部參考連結：</label>
+                <input type="url" id="new-link" placeholder="https://...">
+            </div>
+            <div class="form-group">
+                <label>外觀特徵說明：</label>
+                <textarea id="new-desc" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>照顧與環境需求：</label>
+                <textarea id="new-care" rows="3"></textarea>
+            </div>
             <div class="form-group">
                 <label>相對座標 (%)：</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="number" id="new-x" readonly style="background:#eee;">
-                    <input type="number" id="new-y" readonly style="background:#eee;">
+                <div style="display: flex; gap: 15px;">
+                    <input type="number" id="new-x" min="0" max="100" readonly style="background:#eee;">
+                    <input type="number" id="new-y" min="0" max="100" readonly style="background:#eee;">
                 </div>
             </div>
-            <button class="btn" onclick="savePlant()" style="width:100%; margin-top:10px; padding:10px;">💾 儲存植物</button>
+            <button class="btn" onclick="savePlant()" style="width: 100%; margin-top: 10px; padding: 10px;">💾 儲存資料</button>
         </div>
     </div>
 
 <script>
-    let adminToken = null; // 管理員 JWT Auth Token
-    let allCasesData = [];
+    let allCases = [];
     let currentCase = null;
-    let currentPlantIndex = null;
+    let currentViewingPlant = null;
     let isSelectingLocation = false;
+    let adminPasscode = ''; // 管理員憑證紀錄
 
-    // 檢查 LocalStorage 是否已有暫存 Token
-    function checkPersistedAuth() {
-        const savedToken = localStorage.getItem('adminToken');
-        if (savedToken) {
-            adminToken = savedToken;
+    // 預設 P7_1 範例資料 (若 API 無資料時備用)
+    const defaultP71Cases = [
+        {
+            id: 'case-nordic',
+            title: '北歐風陽台景觀',
+            icon: '🏡',
+            desc: '結合明亮採光與簡約線條的都市陽台，選用好照顧的觀葉植物打造清新質感。',
+            bgImage: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=1200',
+            plants: [
+                { id: 'p1', name: '琴葉榕', icon: '🌳', x: 30, y: 40, img: 'https://images.unsplash.com/photo-1545241047-6083a3684587?w=600', link: 'https://zh.wikipedia.org/zh-tw/%E7%90%B4%E5%8F%B6%E6%A6%95', desc: '葉片巨大呈提琴狀，具有優雅的木本姿態。', care: '需要充足散射光，土乾再透水。' },
+                { id: 'p2', name: '龜背竹', icon: '🌿', x: 65, y: 60, img: 'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?w=600', link: 'https://zh.wikipedia.org/zh-tw/%E9%BE%9F%E8%83%8C%E7%AB%B9', desc: '獨特的羽狀裂葉，極具熱帶現代感。', care: '喜半陰環境，維持土壤微濕潤。' }
+            ]
+        },
+        {
+            id: 'case-zen',
+            title: '日式枯山水庭園',
+            icon: '⛩️',
+            desc: '以白砂、苔蘚與松柏建構的靜謐禪意空間，注重四季光影的微妙變化。',
+            bgImage: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=1200',
+            plants: [
+                { id: 'p3', name: '羅漢松', icon: '🌳', x: 45, y: 35, img: 'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?w=600', link: '', desc: '樹形挺拔古樸，四季常青。', care: '全日照或半日照皆可，耐修剪。' },
+                { id: 'p4', name: '白砂苔蘚', icon: '🌸', x: 75, y: 70, img: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=600', link: '', desc: '鋪設於地形起伏處，展現自然山水意象。', care: '保持空氣高濕度，避免強烈日光直射。' }
+            ]
         }
-    }
+    ];
 
-    // API Header 包裝
-    function getHeaders() {
-        const headers = { 'Content-Type': 'application/json' };
-        if (adminToken) {
-            headers['Authorization'] = `Bearer ${adminToken}`;
-        }
-        return headers;
-    }
-
-    // 權限切換與密碼驗證 (透過 API 連線驗證並簽發 JWT)
-    async function toggleAdminMode() {
-        if (adminToken) {
-            adminToken = null;
-            localStorage.removeItem('adminToken');
-            updateUIByRole();
-            alert("已退出管理員模式");
+    // 切換管理員登入模式
+    function toggleAdminMode() {
+        const btn = document.getElementById('admin-toggle-btn');
+        if (adminPasscode) {
+            if (confirm("確定要登出管理員身分嗎？")) {
+                adminPasscode = '';
+                document.body.classList.remove('is-admin');
+                btn.innerText = '🔐 管理員登入';
+                alert('已登出');
+            }
         } else {
-            const pwd = prompt("請輸入管理員密碼：");
-            if (!pwd) return;
-
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: pwd })
-                });
-
-                const result = await res.json();
-
-                if (result.success) {
-                    adminToken = result.token;
-                    localStorage.setItem('adminToken', adminToken);
-                    updateUIByRole();
-                    alert("驗證成功，已進入管理員模式！");
-                } else {
-                    alert(result.message || "密碼錯誤！");
-                }
-            } catch (err) {
-                console.error("登入失敗", err);
-                alert("無法連線至伺服器");
+            const pass = prompt("請輸入管理員密碼：");
+            if (pass) {
+                adminPasscode = pass;
+                document.body.classList.add('is-admin');
+                btn.innerText = '🔓 管理員已登入 (點擊登出)';
+                alert('登入成功！');
             }
         }
     }
 
-    function updateUIByRole() {
-        const adminElements = document.querySelectorAll('.admin-only');
-        const roleBadge = document.getElementById('role-badge');
-        const authBtn = document.getElementById('auth-btn');
-
-        if (adminToken) {
-            adminElements.forEach(el => el.style.display = 'inline-block');
-            roleBadge.className = "mode-badge mode-admin";
-            roleBadge.innerText = "⚡ 管理員模式";
-            authBtn.innerText = "🔒 退出管理員";
-        } else {
-            adminElements.forEach(el => el.style.display = 'none');
-            roleBadge.className = "mode-badge mode-visitor";
-            roleBadge.innerText = "👀 純瀏覽模式";
-            authBtn.innerText = "🔐 管理員登入";
-        }
-    }
-
-    // 載入資料 (GET /api/cases)
-    async function fetchCases() {
+    // 初始化：獲取 API 案例（若無則載入預設）
+    async function initCaseSelection() {
         try {
             const res = await fetch('/api/cases');
-            const result = await res.json();
-            if (result.success) {
-                allCasesData = result.data;
-                renderCasesGrid();
+            const data = await res.json();
+            if (data.success && data.data && data.data.length > 0) {
+                allCases = data.data;
+            } else {
+                allCases = defaultP71Cases;
             }
         } catch (err) {
-            console.error("無法取得案例列表", err);
+            console.warn("無法連線至 API，載入預設 P7_1 範例:", err);
+            allCases = defaultP71Cases;
         }
+        renderCases();
     }
 
-    function renderCasesGrid() {
+    function renderCases() {
         const container = document.getElementById('cases-container');
         container.innerHTML = '';
-
-        allCasesData.forEach((c) => {
+        allCases.forEach(c => {
             const card = document.createElement('div');
             card.className = 'case-card';
+            const bgUrl = c.bgImage || 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=1200';
             card.innerHTML = `
                 <div class="case-card-banner">
-                    <img src="${c.bgImage || ''}" alt="${c.title}">
+                    <img src="${bgUrl}" alt="${c.title}">
                     <div class="case-card-icon-badge">${c.icon || "🏡"}</div>
                 </div>
                 <div class="case-card-body">
                     <div>
-                        <div class="admin-only" style="display:${adminToken ? 'flex' : 'none'}; justify-content:flex-end; gap:5px; margin-bottom:10px;">
-                            <button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); openCaseForm('${c.id}');">✏️ 編輯</button>
-                            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteCase('${c.id}');">🗑️ 刪除</button>
+                        <div class="case-card-header">
+                            <div class="case-card-actions admin-only">
+                                <button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); openCaseForm('${c.id}');">✏️ 編輯</button>
+                                <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteCase('${c.id}');">🗑️ 刪除</button>
+                            </div>
                         </div>
                         <h3>${c.title}</h3>
                         <p>${c.desc || ''}</p>
                     </div>
-                    <button class="enter-btn" onclick="openCase('${c.id}')">進入圖解地圖 ➔ (${c.plants ? c.plants.length : 0} 株)</button>
+                    <button class="enter-btn" onclick="openCase('${c.id}')">進入圖解地圖 ➔ (${c.plants ? c.plants.length : 0} 株植物)</button>
                 </div>
             `;
             container.appendChild(card);
         });
     }
 
+    async function saveCase() {
+        if (!adminPasscode) return alert("請先登入管理員身分！");
+
+        const id = document.getElementById('case-edit-id').value;
+        const title = document.getElementById('case-title-input').value.trim();
+        const icon = document.getElementById('case-icon-input').value.trim() || '🏡';
+        const desc = document.getElementById('case-desc-input').value.trim();
+        const bgImage = document.getElementById('case-bg-input').value.trim();
+
+        if (!title) return alert('請輸入名稱！');
+
+        try {
+            const res = await fetch('/api/cases', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminPasscode}` },
+                body: JSON.stringify({ id, title, icon, desc, bgImage })
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert('✅ 儲存成功！');
+                closeOverlay('case-modal');
+                initCaseSelection();
+            } else {
+                alert(result.message || '儲存失敗！');
+            }
+        } catch (err) {
+            alert('連線失敗，無法儲存案例！');
+        }
+    }
+
+    async function deleteCase(id) {
+        if (!adminPasscode) return alert("請先登入管理員身分！");
+        if (!confirm('確定要刪除此案例嗎？')) return;
+
+        try {
+            const res = await fetch(`/api/cases/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${adminPasscode}` }
+            });
+            const result = await res.json();
+            if (result.success) {
+                initCaseSelection();
+            } else {
+                alert(result.message || '刪除失敗！');
+            }
+        } catch (err) {
+            alert('連線失敗，無法刪除案例！');
+        }
+    }
+
+    function openCaseForm(id) {
+        document.getElementById('case-edit-id').value = id || '';
+        document.getElementById('case-form-title').innerText = id ? '✏️ 編輯案例' : '➕ 新增案例';
+        if (id) {
+            const c = allCases.find(x => x.id === id);
+            document.getElementById('case-title-input').value = c.title || '';
+            document.getElementById('case-icon-input').value = c.icon || '🏡';
+            document.getElementById('case-desc-input').value = c.desc || '';
+            document.getElementById('case-bg-input').value = c.bgImage || '';
+        } else {
+            document.getElementById('case-title-input').value = '';
+            document.getElementById('case-icon-input').value = '🏡';
+            document.getElementById('case-desc-input').value = '';
+            document.getElementById('case-bg-input').value = '';
+        }
+        document.getElementById('case-modal').style.display = 'block';
+    }
+
     function openCase(id) {
-        currentCase = allCasesData.find(c => c.id === id);
-        if (!currentCase) return;
-
+        currentCase = allCases.find(c => c.id === id);
         document.getElementById('current-case-title').innerText = currentCase.title;
-        document.getElementById('bg-map-img').src = currentCase.bgImage || "";
-
+        const bgImg = document.getElementById('bg-map-img');
+        bgImg.style.display = 'block';
+        bgImg.src = currentCase.bgImage || 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=1200';
         document.getElementById('case-selection-view').style.display = 'none';
         document.getElementById('garden-view').style.display = 'block';
-
         renderOverview();
     }
 
     function backToCaseSelection() {
-        cancelAddMode();
-        closeOverlay('detail-card');
         document.getElementById('garden-view').style.display = 'none';
         document.getElementById('case-selection-view').style.display = 'flex';
-        fetchCases();
+        initCaseSelection();
     }
 
     function renderOverview() {
@@ -278,271 +432,238 @@
         mapArea.innerHTML = '';
         mapArea.appendChild(img);
 
+        // 1. 點擊地圖空白處新增植物 (僅管理員點擊「新增植物」按鈕後觸發)
         img.onclick = function(e) {
-            if (isSelectingLocation && adminToken) {
+            if (isSelectingLocation && adminPasscode) {
                 const percentX = Math.round((e.clientX / window.innerWidth) * 100);
                 const percentY = Math.round((e.clientY / window.innerHeight) * 100);
-
-                if (e.clientX < (window.innerWidth - 380)) {
-                    document.getElementById('edit-plant-id').value = "";
-                    document.getElementById('form-title').innerText = "🌱 填寫植物資料";
-                    document.getElementById('new-x').value = percentX;
-                    document.getElementById('new-y').value = percentY;
-
-                    document.getElementById('click-hint').style.display = 'none';
-                    document.getElementById('form-card').style.display = 'block';
-                    isSelectingLocation = false;
-                }
+                document.getElementById('edit-plant-id').value = "";
+                document.getElementById('new-x').value = percentX;
+                document.getElementById('new-y').value = percentY;
+                document.getElementById('click-hint').style.display = 'none';
+                document.getElementById('form-card').style.display = 'block';
+                isSelectingLocation = false;
             }
         };
 
-        const plants = currentCase.plants || [];
-        plants.forEach((p, index) => {
+        // 2. 渲染植物標記與拖曳邏輯
+        (currentCase.plants || []).forEach(p => {
             const spot = document.createElement('div');
             spot.className = 'hotspot';
             spot.style.left = p.x + '%';
             spot.style.top = p.y + '%';
             spot.innerText = p.icon || "🌱";
-            spot.title = p.name;
 
-            let isDragging = false;
+            // 管理員模式下啟用拖曳標籤
+            if (adminPasscode) {
+                spot.draggable = true;
+                spot.style.cursor = 'move';
 
-            spot.onmousedown = function(e) {
+                // 開始拖曳
+                spot.ondragstart = (e) => {
+                    e.dataTransfer.setData('text/plain', p.id);
+                };
+            } else {
+                spot.draggable = false;
+                spot.style.cursor = 'pointer';
+            }
+
+            // 點擊事件：查看詳情
+            spot.onclick = (e) => {
                 e.stopPropagation();
-                if (!adminToken || isSelectingLocation) {
-                    showDetail(index);
-                    return;
-                }
-
-                let startX = e.clientX, startY = e.clientY;
-
-                document.onmousemove = function(e) {
-                    if (Math.abs(e.clientX - startX) > 3 || Math.abs(e.clientY - startY) > 3) {
-                        isDragging = true;
-                        spot.classList.add('dragging');
-                        let pX = Math.max(0, Math.min(100, (e.clientX / window.innerWidth) * 100));
-                        let pY = Math.max(0, Math.min(100, (e.clientY / window.innerHeight) * 100));
-                        spot.style.left = pX + '%';
-                        spot.style.top = pY + '%';
-                    }
-                };
-
-                document.onmouseup = async function(e) {
-                    document.onmousemove = null;
-                    document.onmouseup = null;
-
-                    if (isDragging) {
-                        isDragging = false;
-                        spot.classList.remove('dragging');
-                        p.x = Math.round((e.clientX / window.innerWidth) * 100);
-                        p.y = Math.round((e.clientY / window.innerHeight) * 100);
-                        await savePlantData(p);
-                    } else {
-                        showDetail(index);
-                    }
-                };
+                showDetail(p);
             };
 
             mapArea.appendChild(spot);
         });
-    }
 
-    async function savePlantData(plantData) {
-        try {
-            const res = await fetch('/api/plants', {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify(plantData)
-            });
-            const result = await res.json();
-            if (!result.success) {
-                alert("儲存失敗：" + result.message);
-                if (res.status === 401 || res.status === 403) {
-                    adminToken = null;
-                    localStorage.removeItem('adminToken');
-                    updateUIByRole();
+        // 3. 地圖區域監聽放置（Drop）事件
+        mapArea.ondragover = (e) => {
+            e.preventDefault(); // 允許 Drop
+        };
+
+        mapArea.ondrop = async (e) => {
+            e.preventDefault();
+            if (!adminPasscode) return;
+
+            const plantId = e.dataTransfer.getData('text/plain');
+            if (!plantId) return;
+
+            // 計算拖曳後落點的相對百分比
+            const rect = mapArea.getBoundingClientRect();
+            const newX = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+            const newY = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+
+            // 找到該植物資料並更新座標
+            const plant = currentCase.plants.find(item => item.id === plantId);
+            if (plant) {
+                plant.x = newX;
+                plant.y = newY;
+
+                // 發送更新請求給後端 API
+                try {
+                 const res = await fetch('/api/plants', {
+                     method: 'POST',
+                     headers: { 
+                            'Content-Type': 'application/json', 
+                         'Authorization': `Bearer ${adminPasscode}` 
+                        },
+                        body: JSON.stringify({
+                         id: plant.id,
+                         case_id: currentCase.id,
+                         name: plant.name,
+                         icon: plant.icon,
+                         img: plant.img,
+                         link: plant.link,
+                         desc: plant.desc,
+                         care: plant.care,
+                         x: newX,
+                         y: newY
+                        })
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        renderOverview(); // 重新整理畫面座標
+                    } else {
+                        alert(result.message || '更新位置失敗');
+                    }
+                } catch (err) {
+                    console.error("拖曳更新失敗:", err);
                 }
             }
-        } catch (err) {
-            console.error(err);
-        }
+        };
     }
 
-    function startSelectLocationMode() {
-        if (!adminToken) return;
-        closeOverlay('detail-card');
-        closeOverlay('form-card');
-        resetForm();
-        isSelectingLocation = true;
-        document.getElementById('click-hint').style.display = 'block';
-    }
-
-    function cancelAddMode() {
-        closeOverlay('form-card');
-        isSelectingLocation = false;
-        document.getElementById('click-hint').style.display = 'none';
-        resetForm();
-    }
-
-    function showDetail(index) {
-        const p = currentCase.plants[index];
-        currentPlantIndex = index;
+    function showDetail(p) {
+        currentViewingPlant = p;
         document.getElementById('detail-icon').innerText = p.icon || "🌱";
         document.getElementById('detail-title').innerText = p.name;
         document.getElementById('detail-img').src = p.img || '';
+        
+        const linkEl = document.getElementById('detail-link');
+        if (p.link) {
+            linkEl.href = p.link;
+            linkEl.style.pointerEvents = 'auto';
+            linkEl.style.cursor = 'pointer';
+        } else {
+            linkEl.removeAttribute('href');
+            linkEl.style.pointerEvents = 'none';
+            linkEl.style.cursor = 'default';
+        }
+
         document.getElementById('detail-desc').innerText = p.desc || '';
         document.getElementById('detail-care').innerText = p.care || '';
-        cancelAddMode();
         document.getElementById('detail-card').style.display = 'block';
     }
 
-    async function savePlant() {
-        if (!adminToken) return;
-        const name = document.getElementById('new-name').value.trim();
-        if (!name) return alert('請填寫植物名稱！');
-
-        const plantData = {
-            id: document.getElementById('edit-plant-id').value || undefined,
-            case_id: currentCase.id,
-            name: name,
-            icon: document.getElementById('new-icon').value,
-            img: document.getElementById('new-img').value,
-            desc: document.getElementById('new-desc').value.trim(),
-            care: document.getElementById('new-care').value.trim(),
-            x: parseFloat(document.getElementById('new-x').value) || 50,
-            y: parseFloat(document.getElementById('new-y').value) || 50
-        };
-
-        await savePlantData(plantData);
-        closeOverlay('form-card');
-        await fetchCases();
-        currentCase = allCasesData.find(c => c.id === currentCase.id);
-        renderOverview();
-    }
-
     function editCurrentPlant() {
-        if (!adminToken || currentPlantIndex === null) return;
-        const p = currentCase.plants[currentPlantIndex];
+        if (!currentViewingPlant) return;
+        const p = currentViewingPlant;
         document.getElementById('edit-plant-id').value = p.id;
         document.getElementById('form-title').innerText = "✏️ 編輯植物資料";
-        document.getElementById('new-name').value = p.name;
+        document.getElementById('new-name').value = p.name || "";
         document.getElementById('new-icon').value = p.icon || "🌱";
         document.getElementById('new-img').value = p.img || "";
+        document.getElementById('new-link').value = p.link || "";
         document.getElementById('new-desc').value = p.desc || "";
         document.getElementById('new-care').value = p.care || "";
         document.getElementById('new-x').value = p.x;
         document.getElementById('new-y').value = p.y;
-
         closeOverlay('detail-card');
         document.getElementById('form-card').style.display = 'block';
     }
 
-    async function deleteCurrentPlant() {
-        if (!adminToken || currentPlantIndex === null) return;
-        const p = currentCase.plants[currentPlantIndex];
-        if (confirm('確定要刪除此植物嗎？')) {
-            try {
-                const res = await fetch(`/api/plants/${p.id}`, {
-                    method: 'DELETE',
-                    headers: getHeaders()
-                });
-                const result = await res.json();
-                if (result.success) {
-                    closeOverlay('detail-card');
-                    await fetchCases();
-                    currentCase = allCasesData.find(c => c.id === currentCase.id);
-                    renderOverview();
-                } else {
-                    alert(result.message);
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        }
-    }
+    async function savePlant() {
+        if (!adminPasscode) return alert("請先登入管理員身分！");
 
-    function openCaseForm(id) {
-        if (!adminToken) return;
-        const c = allCasesData.find(item => item.id === id);
-        if (c) {
-            document.getElementById('case-edit-id').value = c.id;
-            document.getElementById('case-title-input').value = c.title;
-            document.getElementById('case-icon-input').value = c.icon;
-            document.getElementById('case-desc-input').value = c.desc;
-            document.getElementById('case-bg-input').value = c.bgImage;
-        } else {
-            document.getElementById('case-edit-id').value = '';
-            document.getElementById('case-title-input').value = '';
-            document.getElementById('case-desc-input').value = '';
-            document.getElementById('case-bg-input').value = '';
-        }
-        document.getElementById('case-modal').style.display = 'block';
-    }
+        const id = document.getElementById('edit-plant-id').value;
+        const name = document.getElementById('new-name').value.trim();
+        const icon = document.getElementById('new-icon').value;
+        const img = document.getElementById('new-img').value.trim();
+        const link = document.getElementById('new-link').value.trim();
+        const desc = document.getElementById('new-desc').value.trim();
+        const care = document.getElementById('new-care').value.trim();
+        const x = parseFloat(document.getElementById('new-x').value);
+        const y = parseFloat(document.getElementById('new-y').value);
 
-    async function saveCase() {
-        if (!adminToken) return;
-        const title = document.getElementById('case-title-input').value.trim();
-        if (!title) return alert('請輸入案例名稱');
-
-        const caseData = {
-            id: document.getElementById('case-edit-id').value || undefined,
-            title,
-            icon: document.getElementById('case-icon-input').value,
-            desc: document.getElementById('case-desc-input').value,
-            bgImage: document.getElementById('case-bg-input').value
-        };
+        if (!name) return alert('請填寫名稱！');
 
         try {
-            const res = await fetch('/api/cases', {
+            const res = await fetch('/api/plants', {
                 method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify(caseData)
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminPasscode}` },
+                body: JSON.stringify({ id, case_id: currentCase.id, name, icon, img, link, desc, care, x, y })
             });
             const result = await res.json();
             if (result.success) {
-                closeOverlay('case-modal');
-                fetchCases();
+                closeOverlay('form-card');
+                const resCases = await fetch('/api/cases');
+                const data = await resCases.json();
+                allCases = data.data;
+                openCase(currentCase.id);
             } else {
-                alert("儲存失敗：" + result.message);
+                alert(result.message || '儲存失敗！');
             }
         } catch (err) {
-            console.error(err);
+            alert('連線失敗，無法儲存植物資料！');
         }
     }
 
-    async function deleteCase(id) {
-        if (!adminToken) return;
-        if (confirm('確定刪除此案例？')) {
-            try {
-                const res = await fetch(`/api/cases/${id}`, {
-                    method: 'DELETE',
-                    headers: getHeaders()
-                });
-                const result = await res.json();
-                if (result.success) {
-                    fetchCases();
-                } else {
-                    alert(result.message);
-                }
-            } catch (err) {
-                console.error(err);
+    async function deleteCurrentPlant() {
+        if (!adminPasscode) return alert("請先登入管理員身分！");
+        if (!confirm('確定刪除此植物嗎？')) return;
+
+        try {
+            const res = await fetch(`/api/plants/${currentViewingPlant.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${adminPasscode}` }
+            });
+            const result = await res.json();
+            if (result.success) {
+                closeOverlay('detail-card');
+                const resCases = await fetch('/api/cases');
+                const data = await resCases.json();
+                allCases = data.data;
+                openCase(currentCase.id);
+            } else {
+                alert(result.message || '刪除失敗！');
             }
+        } catch (err) {
+            alert('連線失敗，無法刪除植物！');
         }
     }
 
-    function closeOverlay(id) { document.getElementById(id).style.display = 'none'; }
-    function resetForm() {
-        document.getElementById('edit-plant-id').value = "";
-        document.getElementById('new-name').value = "";
-        document.getElementById('new-img').value = "";
-        document.getElementById('new-desc').value = "";
-        document.getElementById('new-care').value = "";
+    function startSelectLocationMode() {
+        closeOverlay('detail-card');
+        isSelectingLocation = true;
+        document.getElementById('click-hint').style.display = 'block';
     }
 
-    // 啟動專案
-    checkPersistedAuth();
-    fetchCases();
-    updateUIByRole();
+    // 中斷與取消新增/編輯模式
+    function cancelAddMode() {
+        isSelectingLocation = false;
+        document.getElementById('click-hint').style.display = 'none';
+        document.getElementById('form-card').style.display = 'none';
+    
+        // 清除編輯表單快取資料
+        document.getElementById('edit-plant-id').value = '';
+        document.getElementById('new-name').value = '';
+        document.getElementById('new-img').value = '';
+        document.getElementById('new-link').value = '';
+        document.getElementById('new-desc').value = '';
+        document.getElementById('new-care').value = '';
+    }
+
+    // 關閉浮動視窗 (同步檢查並中斷選取狀態)
+    function closeOverlay(id) { 
+        document.getElementById(id).style.display = 'none'; 
+        if (id === 'form-card') {
+            cancelAddMode();
+        }
+    }
+
+    // 初始化頁面
+    initCaseSelection();
 </script>
 </body>
 </html>
