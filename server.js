@@ -24,6 +24,7 @@ const db = new sqlite3.Database('./landscape.db', (err) => {
 
 function initDb() {
     db.serialize(() => {
+        // 1. 建立 cases 表格
         db.run(`CREATE TABLE IF NOT EXISTS cases (
             id TEXT PRIMARY KEY,
             title TEXT,
@@ -32,6 +33,7 @@ function initDb() {
             bgImage TEXT
         )`);
 
+        // 2. 建立 plants 表格
         db.run(`CREATE TABLE IF NOT EXISTS plants (
             id TEXT PRIMARY KEY,
             case_id TEXT,
@@ -43,11 +45,29 @@ function initDb() {
             care TEXT,
             x REAL,
             y REAL
-        )`, () => {
-            db.run(`ALTER TABLE plants ADD COLUMN x REAL`, () => {});
-            db.run(`ALTER TABLE plants ADD COLUMN y REAL`, () => {});
-            db.run(`ALTER TABLE plants ADD COLUMN link TEXT`, () => {});
-            db.run(`ALTER TABLE plants ADD COLUMN care TEXT`, () => {});
+        )`);
+
+        // 3. 自動植入預設資料（若資料庫無資料時）
+        db.get(`SELECT COUNT(*) as count FROM cases`, [], (err, row) => {
+            if (err) return;
+            if (row.count === 0) {
+                console.log('🌱 資料庫為空，開始寫入預設案例與植物數據...');
+
+                // 寫入預設案例 1 & 2
+                const stmtCase = db.prepare(`INSERT INTO cases (id, title, icon, desc, bgImage) VALUES (?, ?, ?, ?, ?)`);
+                stmtCase.run('case_1', '第一層案例：陽台熱帶植物園', '🏡', '專為半日照陽台設計的植栽佈局，兼具景觀與空氣淨化功能。', 'images/base.jpg');
+                stmtCase.run('case_2', '第二層案例：室內觀葉植物角', '🪴', '適合低光照環境的室內綠化範例，運用層次感打造舒適角落。', 'images/base2.jpg');
+                stmtCase.finalize();
+
+                // 寫入預設植物
+                const stmtPlant = db.prepare(`INSERT INTO plants (id, case_id, name, icon, img, link, desc, care, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                stmtPlant.run('p1', 'case_1', '龜背竹', '🌿', 'images/monstera.jpg', '', '大型觀葉植物，葉片有獨特的羽狀裂紋。', '保持土壤微濕，避免強光直射。', 35, 45);
+                stmtPlant.run('p2', 'case_1', '虎尾蘭', '🌱', 'images/snake_plant.jpg', '', '極度耐旱且具備強大空氣淨化能力的植物。', '少澆水，放置於光線明亮處。', 60, 65);
+                stmtPlant.run('p3', 'case_2', '琴葉榕', '🌳', 'images/fiddle.jpg', '', '葉片巨大呈提琴狀，極具現代家居風格。', '需要充足散光，注意通風與定期擦拭葉片。', 50, 40);
+                stmtPlant.finalize();
+
+                console.log('✅ 預設案例與植物數據自動植入完成！');
+            }
         });
     });
 }
