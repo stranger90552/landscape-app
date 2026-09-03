@@ -123,7 +123,7 @@
 
         <div class="header-title">
             <h1>🌿 iPlants 圖解植栽設計展覽館</h1>
-            <p>請選擇您想要探索的案例案例（目前為訪客瀏覽模式）</p>
+            <p>請選擇您想要探索的案例（預設為訪客瀏覽模式）</p>
         </div>
 
         <div class="cards-grid" id="cases-container"></div>
@@ -282,6 +282,7 @@
                 document.getElementById('admin-toggle-btn').innerText = '🔐 管理員登入';
                 alert('已切換為純訪客模式');
                 renderCases();
+                if (currentCase) renderOverview();
             }
         } else {
             const pass = prompt("請輸入管理員密碼：");
@@ -291,6 +292,7 @@
                 document.getElementById('admin-toggle-btn').innerText = '🔓 管理員已登入 (點擊登出)';
                 alert('已解鎖管理員權限！');
                 renderCases();
+                if (currentCase) renderOverview();
             }
         }
     }
@@ -422,6 +424,7 @@
         mapArea.innerHTML = '';
         mapArea.appendChild(img);
 
+        // 1. 點擊地圖空白處新增植物 (僅管理員點擊「新增植物」按鈕後觸發)
         img.onclick = function(e) {
             if (isSelectingLocation && adminPasscode) {
                 const percentX = Math.round((e.clientX / window.innerWidth) * 100);
@@ -435,15 +438,87 @@
             }
         };
 
+        // 2. 渲染植物標記與拖曳邏輯
         (currentCase.plants || []).forEach(p => {
             const spot = document.createElement('div');
             spot.className = 'hotspot';
             spot.style.left = p.x + '%';
             spot.style.top = p.y + '%';
             spot.innerText = p.icon || "🌱";
-            spot.onclick = (e) => { e.stopPropagation(); showDetail(p); };
+
+            // 管理員模式下啟用拖曳
+            if (adminPasscode) {
+                spot.draggable = true;
+                spot.style.cursor = 'move';
+                spot.ondragstart = (e) => {
+                    e.dataTransfer.setData('text/plain', p.id);
+                };
+            } else {
+                spot.draggable = false;
+                spot.style.cursor = 'pointer';
+            }
+
+            // 點擊事件：查看詳情
+            spot.onclick = (e) => {
+                e.stopPropagation();
+                showDetail(p);
+            };
+
             mapArea.appendChild(spot);
         });
+
+        // 3. 地圖區域監聽放置（Drop）事件
+        mapArea.ondragover = (e) => {
+            e.preventDefault();
+        };
+
+        mapArea.ondrop = async (e) => {
+            e.preventDefault();
+            if (!adminPasscode) return;
+
+            const plantId = e.dataTransfer.getData('text/plain');
+            if (!plantId) return;
+
+            const rect = mapArea.getBoundingClientRect();
+            const newX = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+            const newY = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+
+            const plant = currentCase.plants.find(item => item.id === plantId);
+            if (plant) {
+                plant.x = newX;
+                plant.y = newY;
+
+                try {
+                    const res = await fetch('/api/plants', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'Authorization': `Bearer ${adminPasscode}` 
+                        },
+                        body: JSON.stringify({
+                            id: plant.id,
+                            case_id: currentCase.id,
+                            name: plant.name,
+                            icon: plant.icon,
+                            img: plant.img,
+                            link: plant.link,
+                            desc: plant.desc,
+                            care: plant.care,
+                            x: newX,
+                            y: newY
+                        })
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        renderOverview();
+                    } else {
+                        alert(result.message || '更新位置失敗');
+                    }
+                } catch (err) {
+                    console.error("拖曳更新失敗:", err);
+                }
+            }
+        };
     }
 
     function showDetail(p) {
