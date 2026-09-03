@@ -25,7 +25,6 @@
         .case-card-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .case-card-icon-badge { position: absolute; bottom: -20px; left: 20px; width: 50px; height: 50px; background: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 2px solid #a5d6a7; }
         .case-card-body { padding: 30px 20px 20px 20px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
-        .case-card-actions { display: flex; gap: 6px; }
         .case-card h3 { font-size: 20px; color: #2e7d32; margin: 0 0 10px 0; }
         .case-card p { font-size: 14px; color: #555; line-height: 1.5; margin-bottom: 15px; }
         .case-card .enter-btn { background: #2e7d32; color: white; padding: 10px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; border: none; cursor: pointer; width: 100%; }
@@ -84,7 +83,7 @@
             <div class="form-group"><label>案例名稱：</label><input type="text" id="case-title-input"></div>
             <div class="form-group"><label>圖示 (Emoji)：</label><input type="text" id="case-icon-input" value="🏡"></div>
             <div class="form-group"><label>案例簡介：</label><textarea id="case-desc-input" rows="3"></textarea></div>
-            <div class="form-group"><label>背景圖片路徑：</label><input type="text" id="case-bg-input" value="images/base.jpg"></div>
+            <div class="form-group"><label>Cloudinary 背景圖片網址 (URL)：</label><input type="text" id="case-bg-input" placeholder="https://res.cloudinary.com/..."></div>
             <button class="btn" onclick="saveCase()" style="width:100%; margin-top:10px; padding:10px;">💾 儲存案例</button>
         </div>
     </div>
@@ -100,7 +99,7 @@
         <div id="click-hint" class="click-hint-banner">📍 請在全螢幕地圖上，直接用滑鼠點選要擺放的位置...</div>
 
         <div class="fullscreen-bg" id="map-area">
-            <img id="bg-map-img" src="images/base.jpg" alt="花園地圖">
+            <img id="bg-map-img" src="" alt="花園地圖">
         </div>
 
         <!-- 植物詳情 -->
@@ -136,7 +135,7 @@
                     <option value="🌳">🌳 大樹款式</option>
                 </select>
             </div>
-            <div class="form-group"><label>植物圖片連結 (URL 或 images/ 檔案名稱)：</label><input type="text" id="new-img" placeholder="images/monstera.jpg"></div>
+            <div class="form-group"><label>Cloudinary 植物圖片網址 (URL)：</label><input type="text" id="new-img" placeholder="https://res.cloudinary.com/..."></div>
             <div class="form-group"><label>外部參考連結：</label><input type="url" id="new-link"></div>
             <div class="form-group"><label>外觀特徵說明：</label><textarea id="new-desc" rows="2"></textarea></div>
             <div class="form-group"><label>照顧指南：</label><textarea id="new-care" rows="2"></textarea></div>
@@ -158,7 +157,6 @@
     let isSelectingLocation = false;
     let currentViewingIndex = null;
 
-    // 從 API 載入資料
     function loadDataFromAPI() {
         fetch('/api/cases')
             .then(res => res.json())
@@ -180,7 +178,7 @@
             card.className = 'case-card';
             card.innerHTML = `
                 <div class="case-card-banner">
-                    <img src="${c.bgImage || 'images/base.jpg'}" alt="${c.title}">
+                    <img src="${c.bgImage || ''}" alt="${c.title}">
                     <div class="case-card-icon-badge">${c.icon || "🏡"}</div>
                 </div>
                 <div class="case-card-body">
@@ -205,7 +203,7 @@
         plants = c.plants || [];
 
         document.getElementById('current-case-title').innerText = c.title;
-        document.getElementById('bg-map-img').src = c.bgImage || "images/base.jpg";
+        document.getElementById('bg-map-img').src = c.bgImage || "";
 
         document.getElementById('case-selection-view').style.display = 'none';
         document.getElementById('garden-view').style.display = 'block';
@@ -227,7 +225,6 @@
         mapArea.innerHTML = '';
         mapArea.appendChild(img);
 
-        // 監聽背景地圖點擊（選點模式）
         img.onclick = function(e) {
             if (isSelectingLocation) {
                 const percentX = Math.round((e.clientX / window.innerWidth) * 100);
@@ -246,7 +243,6 @@
             }
         };
 
-        // 渲染熱點
         plants.forEach((p, index) => {
             const spot = document.createElement('div');
             spot.className = 'hotspot';
@@ -284,7 +280,6 @@
                         const finalX = Math.round((e.clientX / window.innerWidth) * 100);
                         const finalY = Math.round((e.clientY / window.innerHeight) * 100);
                         
-                        // 儲存新拖曳座標
                         p.x = finalX;
                         p.y = finalY;
                         savePlantAPI(p);
@@ -335,7 +330,7 @@
             case_id: currentCase.id,
             name: name,
             icon: document.getElementById('new-icon').value,
-            img: document.getElementById('new-img').value.trim() || 'images/default.jpg',
+            img: document.getElementById('new-img').value.trim(),
             link: document.getElementById('new-link').value.trim(),
             desc: document.getElementById('new-desc').value.trim(),
             care: document.getElementById('new-care').value.trim(),
@@ -360,7 +355,6 @@
             if(res.success) {
                 alert('✅ 儲存植物資料成功！');
                 closeOverlay('form-card');
-                // 重新載入目前案例
                 fetch('/api/cases')
                     .then(r => r.json())
                     .then(data => {
@@ -423,6 +417,7 @@
         } else {
             document.getElementById('case-title-input').value = '';
             document.getElementById('case-desc-input').value = '';
+            document.getElementById('case-bg-input').value = '';
         }
         document.getElementById('case-modal').style.display = 'block';
     }
@@ -479,7 +474,6 @@
         document.getElementById('new-care').value = "";
     }
 
-    // 啟動載入
     loadDataFromAPI();
 </script>
 
