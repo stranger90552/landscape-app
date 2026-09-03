@@ -63,7 +63,8 @@ function checkAdmin(req, res, next) {
     return res.status(401).json({ success: false, message: '未經授權或密碼錯誤' });
 }
 
-// API 路由
+// --- API 路由 ---
+
 app.get('/api/cases', (req, res) => {
     db.all(`SELECT * FROM cases`, [], (err, cases) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
