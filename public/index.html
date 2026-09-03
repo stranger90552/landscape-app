@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>iPlants圖解植栽設計 - 案例展覽館</title>
+    <!-- 1. 引入 Cloudinary Upload Widget 腳本 -->
+    <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
+    
     <style>
         html, body { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
@@ -83,7 +86,16 @@
             <div class="form-group"><label>案例名稱：</label><input type="text" id="case-title-input"></div>
             <div class="form-group"><label>圖示 (Emoji)：</label><input type="text" id="case-icon-input" value="🏡"></div>
             <div class="form-group"><label>案例簡介：</label><textarea id="case-desc-input" rows="3"></textarea></div>
-            <div class="form-group"><label>Cloudinary 背景圖片網址 (URL)：</label><input type="text" id="case-bg-input" placeholder="https://res.cloudinary.com/..."></div>
+            
+            <!-- Cloudinary 選圖欄位 -->
+            <div class="form-group">
+                <label>背景圖片：</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="case-bg-input" readonly placeholder="請點擊右側按鈕選圖" style="background:#f9f9f9;">
+                    <button type="button" class="btn btn-warning" style="white-space:nowrap;" onclick="openCloudinaryPicker('case-bg-input')">🖼️ 選擇/上傳圖片</button>
+                </div>
+            </div>
+
             <button class="btn" onclick="saveCase()" style="width:100%; margin-top:10px; padding:10px;">💾 儲存案例</button>
         </div>
     </div>
@@ -135,7 +147,16 @@
                     <option value="🌳">🌳 大樹款式</option>
                 </select>
             </div>
-            <div class="form-group"><label>Cloudinary 植物圖片網址 (URL)：</label><input type="text" id="new-img" placeholder="https://res.cloudinary.com/..."></div>
+
+            <!-- Cloudinary 選圖欄位 -->
+            <div class="form-group">
+                <label>植物圖片：</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="new-img" readonly placeholder="請點擊右側按鈕選圖" style="background:#f9f9f9;">
+                    <button type="button" class="btn btn-warning" style="white-space:nowrap;" onclick="openCloudinaryPicker('new-img')">🪴 選擇/上傳圖片</button>
+                </div>
+            </div>
+
             <div class="form-group"><label>外部參考連結：</label><input type="url" id="new-link"></div>
             <div class="form-group"><label>外觀特徵說明：</label><textarea id="new-desc" rows="2"></textarea></div>
             <div class="form-group"><label>照顧指南：</label><textarea id="new-care" rows="2"></textarea></div>
@@ -151,6 +172,37 @@
     </div>
 
 <script>
+    // ----------------------------------------------------
+    // ⚠️ 請在此處填入您第一步取得的 Cloudinary 設定資訊
+    // ----------------------------------------------------
+    const CLOUDINARY_CLOUD_NAME = "kgem7ix6"; 
+    const CLOUDINARY_UPLOAD_PRESET = "ml_default"; 
+
+    // 2. 開啟 Cloudinary 選圖/上傳視窗的函式
+    function openCloudinaryPicker(targetInputId) {
+        if (CLOUDINARY_CLOUD_NAME === "你的_CLOUD_NAME") {
+            alert("請先在 index.html 腳本中填入你的 Cloud Name 與 Upload Preset！");
+            return;
+        }
+
+        const myWidget = cloudinary.createUploadWidget({
+            cloudName: CLOUDINARY_CLOUD_NAME, 
+            uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+            sources: ['local', 'url', 'camera'], // 支援本機上傳、網址或相機
+            multiple: false, // 一次選一張
+            clientAllowedFormats: ['jpg', 'png', 'jpeg', 'webp'],
+            theme: "minimal"
+        }, (error, result) => { 
+            if (!error && result && result.event === "success") { 
+                console.log('上傳成功，圖片網址為: ', result.info.secure_url);
+                // 自動帶入 URL 到指定的 input 欄位中
+                document.getElementById(targetInputId).value = result.info.secure_url;
+            }
+        });
+
+        myWidget.open();
+    }
+
     let allCases = [];
     let currentCaseIndex = null;
     let plants = [];
@@ -330,7 +382,7 @@
             case_id: currentCase.id,
             name: name,
             icon: document.getElementById('new-icon').value,
-            img: document.getElementById('new-img').value.trim(),
+            img: document.getElementById('new-img').value,
             link: document.getElementById('new-link').value.trim(),
             desc: document.getElementById('new-desc').value.trim(),
             care: document.getElementById('new-care').value.trim(),
