@@ -133,11 +133,19 @@
     </div>
 
 <script>
-    let adminToken = null; // 管理員 Auth Token
+    let adminToken = null; // 管理員 JWT Auth Token
     let allCasesData = [];
     let currentCase = null;
     let currentPlantIndex = null;
     let isSelectingLocation = false;
+
+    // 檢查 LocalStorage 是否已有暫存 Token
+    function checkPersistedAuth() {
+        const savedToken = localStorage.getItem('adminToken');
+        if (savedToken) {
+            adminToken = savedToken;
+        }
+    }
 
     // API Header 包裝
     function getHeaders() {
@@ -148,17 +156,37 @@
         return headers;
     }
 
-    // 權限切換與密碼驗證
-    function toggleAdminMode() {
+    // 權限切換與密碼驗證 (透過 API 連線驗證並簽發 JWT)
+    async function toggleAdminMode() {
         if (adminToken) {
             adminToken = null;
+            localStorage.removeItem('adminToken');
             updateUIByRole();
             alert("已退出管理員模式");
         } else {
             const pwd = prompt("請輸入管理員密碼：");
-            if (pwd) {
-                adminToken = pwd;
-                updateUIByRole();
+            if (!pwd) return;
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pwd })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    adminToken = result.token;
+                    localStorage.setItem('adminToken', adminToken);
+                    updateUIByRole();
+                    alert("驗證成功，已進入管理員模式！");
+                } else {
+                    alert(result.message || "密碼錯誤！");
+                }
+            } catch (err) {
+                console.error("登入失敗", err);
+                alert("無法連線至伺服器");
             }
         }
     }
@@ -308,7 +336,7 @@
                         spot.classList.remove('dragging');
                         p.x = Math.round((e.clientX / window.innerWidth) * 100);
                         p.y = Math.round((e.clientY / window.innerHeight) * 100);
-                        await savePlantData(p); // 拖曳放開後更新座標至 API
+                        await savePlantData(p);
                     } else {
                         showDetail(index);
                     }
@@ -329,8 +357,9 @@
             const result = await res.json();
             if (!result.success) {
                 alert("儲存失敗：" + result.message);
-                if (res.status === 401) {
+                if (res.status === 401 || res.status === 403) {
                     adminToken = null;
+                    localStorage.removeItem('adminToken');
                     updateUIByRole();
                 }
             }
@@ -511,6 +540,7 @@
     }
 
     // 啟動專案
+    checkPersistedAuth();
     fetchCases();
     updateUIByRole();
 </script>
