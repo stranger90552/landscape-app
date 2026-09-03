@@ -163,7 +163,9 @@
             <button class="btn admin-only" id="add-btn" onclick="startSelectLocationMode()">➕ 新增植物</button>
         </div>
 
-        <div id="click-hint" class="click-hint-banner">📍 請在全螢幕地圖上，直接用滑鼠點選要擺放的位置...</div>
+        <div id="click-hint" class="click-hint-banner">
+            📍 請在全螢幕地圖上點選擺放位置，或 <button onclick="cancelAddMode()" style="background:#d32f2f; color:white; border:none; padding:2px 8px; border-radius:10px; cursor:pointer; margin-left:8px;">放棄新增 ❌</button>
+        </div>
 
         <div class="fullscreen-bg" id="map-area">
             <img id="bg-map-img" src="" alt="花園全螢幕總覽圖" onerror="this.style.display='none';">
@@ -236,7 +238,10 @@
                     <input type="number" id="new-y" min="0" max="100" readonly style="background:#eee;">
                 </div>
             </div>
-            <button class="btn" onclick="savePlant()" style="width: 100%; margin-top: 10px; padding: 10px;">💾 儲存資料</button>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn" onclick="savePlant()" style="flex: 1; padding: 10px;">💾 儲存資料</button>
+                <button class="btn btn-back" onclick="cancelAddMode()" style="padding: 10px;">取消</button>
+            </div>
         </div>
     </div>
 
@@ -245,9 +250,8 @@
     let currentCase = null;
     let currentViewingPlant = null;
     let isSelectingLocation = false;
-    let adminPasscode = ''; // 管理員憑證紀錄
+    let adminPasscode = '';
 
-    // 預設 P7_1 範例資料 (若 API 無資料時備用)
     const defaultP71Cases = [
         {
             id: 'case-nordic',
@@ -273,7 +277,6 @@
         }
     ];
 
-    // 切換管理員登入模式
     function toggleAdminMode() {
         if (adminPasscode) {
             if (confirm("確定要登出管理員模式嗎？")) {
@@ -297,7 +300,6 @@
         }
     }
 
-    // 初始化：獲取 API 案例（若無則載入預設）
     async function initCaseSelection() {
         try {
             const res = await fetch('/api/cases');
@@ -413,6 +415,7 @@
     }
 
     function backToCaseSelection() {
+        cancelAddMode();
         document.getElementById('garden-view').style.display = 'none';
         document.getElementById('case-selection-view').style.display = 'flex';
         initCaseSelection();
@@ -424,7 +427,6 @@
         mapArea.innerHTML = '';
         mapArea.appendChild(img);
 
-        // 1. 點擊地圖空白處新增植物 (僅管理員點擊「新增植物」按鈕後觸發)
         img.onclick = function(e) {
             if (isSelectingLocation && adminPasscode) {
                 const percentX = Math.round((e.clientX / window.innerWidth) * 100);
@@ -438,7 +440,6 @@
             }
         };
 
-        // 2. 渲染植物標記與拖曳邏輯
         (currentCase.plants || []).forEach(p => {
             const spot = document.createElement('div');
             spot.className = 'hotspot';
@@ -446,7 +447,6 @@
             spot.style.top = p.y + '%';
             spot.innerText = p.icon || "🌱";
 
-            // 管理員模式下啟用拖曳
             if (adminPasscode) {
                 spot.draggable = true;
                 spot.style.cursor = 'move';
@@ -458,7 +458,6 @@
                 spot.style.cursor = 'pointer';
             }
 
-            // 點擊事件：查看詳情
             spot.onclick = (e) => {
                 e.stopPropagation();
                 showDetail(p);
@@ -467,7 +466,6 @@
             mapArea.appendChild(spot);
         });
 
-        // 3. 地圖區域監聽放置（Drop）事件
         mapArea.ondragover = (e) => {
             e.preventDefault();
         };
@@ -569,7 +567,7 @@
         });
         const result = await res.json();
         if (result.success) {
-            closeOverlay('form-card');
+            cancelAddMode();
             const resCases = await fetch('/api/cases');
             const data = await resCases.json();
             allCases = data.data;
@@ -603,13 +601,28 @@
         document.getElementById('click-hint').style.display = 'block';
     }
 
+    // 中斷與取消新增/編輯模式
     function cancelAddMode() {
-        closeOverlay('form-card');
         isSelectingLocation = false;
         document.getElementById('click-hint').style.display = 'none';
+        document.getElementById('form-card').style.display = 'none';
+        
+        // 清除編輯表單快取資料
+        document.getElementById('edit-plant-id').value = '';
+        document.getElementById('new-name').value = '';
+        document.getElementById('new-img').value = '';
+        document.getElementById('new-link').value = '';
+        document.getElementById('new-desc').value = '';
+        document.getElementById('new-care').value = '';
     }
 
-    function closeOverlay(id) { document.getElementById(id).style.display = 'none'; }
+    // 關閉浮動視窗 (同步檢查並中斷選取狀態)
+    function closeOverlay(id) { 
+        document.getElementById(id).style.display = 'none'; 
+        if (id === 'form-card') {
+            cancelAddMode();
+        }
+    }
 
     initCaseSelection();
 </script>
