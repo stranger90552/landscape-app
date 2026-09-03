@@ -2,33 +2,56 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>iPlants圖解植栽設計 - API 串接版</title>
+    <title>iPlants圖解植栽設計 - 案例展覽館</title>
+    <!-- 1. 引入 Cloudinary Media Library Widget 腳本 -->
+    <script src="https://media-library.cloudinary.com/global/all.js" type="text/javascript"></script>
+    
     <style>
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; background: #f4f6f8; }
-        #case-selection-view { width: 100%; height: 100vh; box-sizing: border-box; padding: 40px 20px; overflow-y: auto; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); display: flex; flex-direction: column; align-items: center; position: relative; }
+        html, body { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; 
+            user-select: none; background: #f4f6f8;
+        }
+
+        /* 案例選擇層 */
+        #case-selection-view {
+            width: 100%; height: 100vh; box-sizing: border-box; padding: 40px 20px;
+            overflow-y: auto; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            display: flex; flex-direction: column; align-items: center; position: relative;
+        }
         .main-action-bar { position: absolute; top: 20px; right: 25px; display: flex; gap: 10px; z-index: 10; }
         .header-title { text-align: center; margin-bottom: 30px; margin-top: 10px; color: #1b5e20; }
         .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px; max-width: 1200px; width: 100%; margin-bottom: 40px; }
-        .case-card { background: rgba(255, 255, 255, 0.95); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.08); transition: transform 0.3s; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; border: 2px solid transparent; }
+        .case-card { background: rgba(255, 255, 255, 0.95); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.08); transition: transform 0.3s; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; border: 2px solid transparent; position: relative; }
         .case-card:hover { transform: translateY(-8px); border-color: #4caf50; background: #ffffff; }
         .case-card-banner { width: 100%; height: 160px; position: relative; background: #a5d6a7; overflow: hidden; }
-        .case-card-banner img { width: 100%; height: 100%; object-fit: cover; }
+        .case-card-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .case-card-icon-badge { position: absolute; bottom: -20px; left: 20px; width: 50px; height: 50px; background: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 2px solid #a5d6a7; }
         .case-card-body { padding: 30px 20px 20px 20px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
         .case-card h3 { font-size: 20px; color: #2e7d32; margin: 0 0 10px 0; }
         .case-card p { font-size: 14px; color: #555; line-height: 1.5; margin-bottom: 15px; }
         .case-card .enter-btn { background: #2e7d32; color: white; padding: 10px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; border: none; cursor: pointer; width: 100%; }
 
+        /* 圖解地圖層 */
         #garden-view { display: none; position: relative; width: 100%; height: 100vh; }
         .fullscreen-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: #c8e6c9; }
-        .fullscreen-bg img { width: 100%; height: 100%; object-fit: cover; }
-        .hotspot { position: absolute; width: 42px; height: 42px; background: rgba(255, 255, 255, 0.9); border: 2px solid #2e7d32; border-radius: 50%; cursor: pointer; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.25); z-index: 2; }
+        .fullscreen-bg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        
+        .hotspot {
+            position: absolute; width: 42px; height: 42px; background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #2e7d32; border-radius: 50%; cursor: pointer; transform: translate(-50%, -50%);
+            display: flex; align-items: center; justify-content: center; font-size: 24px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25); z-index: 2; transition: transform 0.1s ease;
+        }
+        .hotspot.draggable { cursor: move; }
+        .hotspot:hover { background: #e8f5e9; transform: translate(-50%, -50%) scale(1.2); }
         .hotspot.dragging { background: #fff3e0 !important; border-color: #ff9100 !important; transform: translate(-50%, -50%) scale(1.3) !important; z-index: 3; }
 
         .floating-action-bar { position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(255, 255, 255, 0.9); padding: 10px 18px; border-radius: 30px; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; }
         .floating-action-bar h1 { margin: 0; font-size: 18px; color: #1b5e20; }
         .click-hint-banner { display: none; position: absolute; top: 25px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(0, 0, 0, 0.8); color: #fff; padding: 10px 24px; border-radius: 20px; font-size: 15px; font-weight: bold; }
 
+        /* 側邊欄與彈窗 */
         .sidebar-card { display: none; position: absolute; top: 0; right: 0; width: 380px; height: 100vh; z-index: 20; background: rgba(255, 255, 255, 0.95); box-shadow: -5px 0 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); box-sizing: border-box; padding: 30px 25px; overflow-y: auto; }
         .center-popup-card { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 25; width: 90%; max-width: 550px; background: rgba(255, 255, 255, 0.95); border-radius: 16px; padding: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
 
@@ -37,45 +60,66 @@
         .btn-back { background: #616161; }
         .btn-warning { background: #f57c00; }
         .btn-danger { background: #d32f2f; }
-        .btn-admin { background: #1565c0; }
         .close-btn { float: right; background: #e0e0e0; color: #333; padding: 5px 12px; border-radius: 15px; font-size: 12px; border: none; cursor: pointer; }
 
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #1b5e20; font-size: 14px; }
         .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-
-        .admin-only { display: none; }
-        .mode-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
-        .mode-visitor { background: #e0e0e0; color: #424242; }
-        .mode-admin { background: #e3f2fd; color: #1565c0; }
+        
+        /* 權限隱藏控制類別 */
+        .admin-only { display: none !important; }
+        body.is-admin .admin-only { display: inline-block !important; }
+        body.is-admin div.admin-only { display: block !important; }
+        body.is-admin flex.admin-only { display: flex !important; }
     </style>
 </head>
 <body>
 
+    <!-- 案例選單層 -->
     <div id="case-selection-view">
         <div class="main-action-bar">
-            <span id="role-badge" class="mode-badge mode-visitor">👀 純瀏覽模式</span>
-            <button class="btn btn-admin" id="auth-btn" onclick="toggleAdminMode()">🔐 管理員登入</button>
             <button class="btn admin-only" onclick="openCaseForm(-1)">➕ 新增案例</button>
+            <button class="btn btn-warning" id="admin-auth-btn" onclick="toggleAdminLogin()">🔐 管理員登入</button>
         </div>
         <div class="header-title">
             <h1>🌿 iPlants 圖解植栽設計展覽館</h1>
-            <p>請點擊案例進行探索</p>
+            <p>請選擇您想要探索的案例，或利用右上角進行管理</p>
         </div>
         <div class="cards-grid" id="cases-container"></div>
+
+        <!-- 管理員登入彈窗 -->
+        <div id="admin-login-modal" class="center-popup-card">
+            <button class="close-btn" onclick="closeOverlay('admin-login-modal')">關閉 ❌</button>
+            <h3 style="margin-top:0; color:#1b5e20;">🔐 管理員身份驗證</h3>
+            <div class="form-group">
+                <label>請輸入管理密碼：</label>
+                <input type="password" id="admin-password-input" placeholder="預設密碼：tsai66" onkeypress="if(event.key==='Enter') performLogin()">
+            </div>
+            <button class="btn" onclick="performLogin()" style="width:100%; margin-top:10px; padding:10px;">確認登入</button>
+        </div>
 
         <div id="case-modal" class="center-popup-card">
             <button class="close-btn" onclick="closeOverlay('case-modal')">關閉 ❌</button>
             <h3 id="case-form-title" style="margin-top:0; color:#1b5e20;">➕ 新增案例</h3>
-            <input type="hidden" id="case-edit-id" value="">
+            <input type="hidden" id="case-edit-index" value="-1">
             <div class="form-group"><label>案例名稱：</label><input type="text" id="case-title-input"></div>
             <div class="form-group"><label>圖示 (Emoji)：</label><input type="text" id="case-icon-input" value="🏡"></div>
             <div class="form-group"><label>案例簡介：</label><textarea id="case-desc-input" rows="3"></textarea></div>
-            <div class="form-group"><label>背景圖片：</label><input type="text" id="case-bg-input" placeholder="圖片網址"></div>
+            
+            <!-- 開啟圖庫按鈕 -->
+            <div class="form-group">
+                <label>背景圖片：</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="case-bg-input" readonly placeholder="請點擊右側按鈕選擇或上傳" style="background:#f9f9f9;">
+                    <button type="button" class="btn btn-warning" style="white-space:nowrap;" onclick="openCloudinaryLibrary('case-bg-input')">🖼️ 選擇庫存/上傳</button>
+                </div>
+            </div>
+
             <button class="btn" onclick="saveCase()" style="width:100%; margin-top:10px; padding:10px;">💾 儲存案例</button>
         </div>
     </div>
 
+    <!-- 地圖檢視層 -->
     <div id="garden-view">
         <div class="floating-action-bar">
             <button class="btn btn-back" onclick="backToCaseSelection()">⬅️ 返回案例列表</button>
@@ -83,12 +127,13 @@
             <button class="btn admin-only" id="add-btn" onclick="startSelectLocationMode()">➕ 新增植物</button>
         </div>
 
-        <div id="click-hint" class="click-hint-banner">📍 請在地圖上點選要擺放植物的位置...</div>
+        <div id="click-hint" class="click-hint-banner">📍 請在全螢幕地圖上，直接用滑鼠點選要擺放的位置...</div>
 
         <div class="fullscreen-bg" id="map-area">
             <img id="bg-map-img" src="" alt="花園地圖">
         </div>
 
+        <!-- 植物詳情 -->
         <div id="detail-card" class="center-popup-card">
             <button class="close-btn" onclick="closeOverlay('detail-card')">關閉 ❌</button>
             <h2 style="margin-top:0; color:#2e7d32;"><span id="detail-icon"></span> <span id="detail-title"></span></h2>
@@ -103,9 +148,12 @@
             </div>
         </div>
 
+        <!-- 新增/編輯植物側邊欄 -->
         <div id="form-card" class="sidebar-card">
             <button class="close-btn" onclick="cancelAddMode()">取消 ❌</button>
             <h3 id="form-title" style="margin-top:0; color:#1b5e20;">🌱 填寫植物資料</h3>
+            <p id="form-tip" style="font-size:12px; color:#4a148c; background:#f3e5f5; padding:8px; border-radius:6px;">✨ <b>位置已鎖定！</b>請在下方選擇與填寫資料。</p>
+            
             <input type="hidden" id="edit-plant-id" value="">
 
             <div class="form-group"><label>植物名稱：</label><input type="text" id="new-name" placeholder="例如：龜背竹"></div>
@@ -118,7 +166,17 @@
                     <option value="🌳">🌳 大樹款式</option>
                 </select>
             </div>
-            <div class="form-group"><label>植物圖片網址：</label><input type="text" id="new-img"></div>
+
+            <!-- 開啟圖庫按鈕 -->
+            <div class="form-group">
+                <label>植物圖片：</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="new-img" readonly placeholder="請點擊右側按鈕選擇或上傳" style="background:#f9f9f9;">
+                    <button type="button" class="btn btn-warning" style="white-space:nowrap;" onclick="openCloudinaryLibrary('new-img')">🪴 選擇庫存/上傳</button>
+                </div>
+            </div>
+
+            <div class="form-group"><label>外部參考連結：</label><input type="url" id="new-link"></div>
             <div class="form-group"><label>外觀特徵說明：</label><textarea id="new-desc" rows="2"></textarea></div>
             <div class="form-group"><label>照顧指南：</label><textarea id="new-care" rows="2"></textarea></div>
             <div class="form-group">
@@ -133,73 +191,92 @@
     </div>
 
 <script>
-    let adminToken = null; // 管理員 Auth Token
-    let allCasesData = [];
-    let currentCase = null;
-    let currentPlantIndex = null;
+    // ----------------------------------------------------
+    // 🔑 請填入您在 Cloudinary Dashboard 看到的參數
+    // ----------------------------------------------------
+    const CLOUDINARY_CLOUD_NAME = "kgem7ix6"; 
+    const CLOUDINARY_API_KEY = "777736999672942"; // 在 Cloudinary Dashboard 首頁可取得
+
+    let isAdmin = false;
+    let adminToken = "tsai66"; // 預設 Authorization Token
+
+    // 管理員登入控制
+    function toggleAdminLogin() {
+        if (isAdmin) {
+            if (confirm("確定要登出管理員身份嗎？")) {
+                isAdmin = false;
+                document.body.classList.remove('is-admin');
+                document.getElementById('admin-auth-btn').innerText = '🔐 管理員登入';
+                document.getElementById('admin-auth-btn').className = 'btn btn-warning';
+                initCaseSelection();
+            }
+        } else {
+            document.getElementById('admin-password-input').value = '';
+            document.getElementById('admin-login-modal').style.display = 'block';
+        }
+    }
+
+    function performLogin() {
+        const inputPass = document.getElementById('admin-password-input').value;
+        if (inputPass) {
+            isAdmin = true;
+            adminToken = inputPass;
+            document.body.classList.add('is-admin');
+            document.getElementById('admin-auth-btn').innerText = '🔓 登出管理員';
+            document.getElementById('admin-auth-btn').className = 'btn btn-danger';
+            closeOverlay('admin-login-modal');
+            initCaseSelection();
+            alert('✅ 已成功登入管理員模式！');
+        } else {
+            alert('請輸入密碼！');
+        }
+    }
+
+    // 2. 開啟 Media Library (瀏覽庫存圖片 + 本機上傳 + 相機上傳)
+    function openCloudinaryLibrary(targetInputId) {
+        if (CLOUDINARY_CLOUD_NAME === "你的_CLOUD_NAME") {
+            alert("請先在 index.html 中填入你的 Cloud Name 與 API Key！");
+            return;
+        }
+
+        cloudinary.openMediaLibrary({
+            cloud_name: CLOUDINARY_CLOUD_NAME,
+            api_key: CLOUDINARY_API_KEY,
+            multiple: false,
+            insert_caption: "選擇此圖片"
+        }, {
+            insertHandler: function(data) {
+                if (data.assets && data.assets.length > 0) {
+                    const selectedUrl = data.assets[0].secure_url;
+                    document.getElementById(targetInputId).value = selectedUrl;
+                }
+            }
+        });
+    }
+
+    let allCases = [];
+    let currentCaseIndex = null;
+    let plants = [];
     let isSelectingLocation = false;
+    let currentViewingIndex = null;
 
-    // API Header 包裝
-    function getHeaders() {
-        const headers = { 'Content-Type': 'application/json' };
-        if (adminToken) {
-            headers['Authorization'] = `Bearer ${adminToken}`;
-        }
-        return headers;
+    function loadDataFromAPI() {
+        fetch('/api/cases')
+            .then(res => res.json())
+            .then(res => {
+                if(res.success && res.data) {
+                    allCases = res.data;
+                    initCaseSelection();
+                }
+            })
+            .catch(err => console.error('無法載入資料:', err));
     }
 
-    // 權限切換與密碼驗證
-    function toggleAdminMode() {
-        if (adminToken) {
-            adminToken = null;
-            updateUIByRole();
-            alert("已退出管理員模式");
-        } else {
-            const pwd = prompt("請輸入管理員密碼：");
-            if (pwd) {
-                adminToken = pwd;
-                updateUIByRole();
-            }
-        }
-    }
-
-    function updateUIByRole() {
-        const adminElements = document.querySelectorAll('.admin-only');
-        const roleBadge = document.getElementById('role-badge');
-        const authBtn = document.getElementById('auth-btn');
-
-        if (adminToken) {
-            adminElements.forEach(el => el.style.display = 'inline-block');
-            roleBadge.className = "mode-badge mode-admin";
-            roleBadge.innerText = "⚡ 管理員模式";
-            authBtn.innerText = "🔒 退出管理員";
-        } else {
-            adminElements.forEach(el => el.style.display = 'none');
-            roleBadge.className = "mode-badge mode-visitor";
-            roleBadge.innerText = "👀 純瀏覽模式";
-            authBtn.innerText = "🔐 管理員登入";
-        }
-    }
-
-    // 載入資料 (GET /api/cases)
-    async function fetchCases() {
-        try {
-            const res = await fetch('/api/cases');
-            const result = await res.json();
-            if (result.success) {
-                allCasesData = result.data;
-                renderCasesGrid();
-            }
-        } catch (err) {
-            console.error("無法取得案例列表", err);
-        }
-    }
-
-    function renderCasesGrid() {
+    function initCaseSelection() {
         const container = document.getElementById('cases-container');
         container.innerHTML = '';
 
-        allCasesData.forEach((c) => {
+        allCases.forEach((c, idx) => {
             const card = document.createElement('div');
             card.className = 'case-card';
             card.innerHTML = `
@@ -209,26 +286,27 @@
                 </div>
                 <div class="case-card-body">
                     <div>
-                        <div class="admin-only" style="display:${adminToken ? 'flex' : 'none'}; justify-content:flex-end; gap:5px; margin-bottom:10px;">
-                            <button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); openCaseForm('${c.id}');">✏️ 編輯</button>
+                        <div class="admin-only" style="display:flex; justify-content:flex-end; gap:5px;">
+                            <button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); openCaseForm(${idx});">✏️ 編輯</button>
                             <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteCase('${c.id}');">🗑️ 刪除</button>
                         </div>
                         <h3>${c.title}</h3>
                         <p>${c.desc || ''}</p>
                     </div>
-                    <button class="enter-btn" onclick="openCase('${c.id}')">進入圖解地圖 ➔ (${c.plants ? c.plants.length : 0} 株)</button>
+                    <button class="enter-btn" onclick="openCase(${idx})">進入圖解地圖 ➔ (${c.plants ? c.plants.length : 0} 株)</button>
                 </div>
             `;
             container.appendChild(card);
         });
     }
 
-    function openCase(id) {
-        currentCase = allCasesData.find(c => c.id === id);
-        if (!currentCase) return;
+    function openCase(idx) {
+        currentCaseIndex = idx;
+        const c = allCases[idx];
+        plants = c.plants || [];
 
-        document.getElementById('current-case-title').innerText = currentCase.title;
-        document.getElementById('bg-map-img').src = currentCase.bgImage || "";
+        document.getElementById('current-case-title').innerText = c.title;
+        document.getElementById('bg-map-img').src = c.bgImage || "";
 
         document.getElementById('case-selection-view').style.display = 'none';
         document.getElementById('garden-view').style.display = 'block';
@@ -241,7 +319,7 @@
         closeOverlay('detail-card');
         document.getElementById('garden-view').style.display = 'none';
         document.getElementById('case-selection-view').style.display = 'flex';
-        fetchCases();
+        loadDataFromAPI();
     }
 
     function renderOverview() {
@@ -251,16 +329,16 @@
         mapArea.appendChild(img);
 
         img.onclick = function(e) {
-            if (isSelectingLocation && adminToken) {
+            if (isSelectingLocation && isAdmin) {
                 const percentX = Math.round((e.clientX / window.innerWidth) * 100);
                 const percentY = Math.round((e.clientY / window.innerHeight) * 100);
-
+                
                 if (e.clientX < (window.innerWidth - 380)) {
                     document.getElementById('edit-plant-id').value = "";
                     document.getElementById('form-title').innerText = "🌱 填寫植物資料";
                     document.getElementById('new-x').value = percentX;
                     document.getElementById('new-y').value = percentY;
-
+                    
                     document.getElementById('click-hint').style.display = 'none';
                     document.getElementById('form-card').style.display = 'block';
                     isSelectingLocation = false;
@@ -268,27 +346,24 @@
             }
         };
 
-        const plants = currentCase.plants || [];
         plants.forEach((p, index) => {
             const spot = document.createElement('div');
-            spot.className = 'hotspot';
+            spot.className = 'hotspot' + (isAdmin ? ' draggable' : '');
             spot.style.left = p.x + '%';
             spot.style.top = p.y + '%';
-            spot.innerText = p.icon || "🌱";
+            spot.innerText = p.icon || "🌱"; 
             spot.title = p.name;
 
             let isDragging = false;
 
             spot.onmousedown = function(e) {
                 e.stopPropagation();
-                if (!adminToken || isSelectingLocation) {
-                    showDetail(index);
-                    return;
-                }
+                if (isSelectingLocation) return;
 
                 let startX = e.clientX, startY = e.clientY;
 
                 document.onmousemove = function(e) {
+                    if (!isAdmin) return; // 非管理員禁止拖曳
                     if (Math.abs(e.clientX - startX) > 3 || Math.abs(e.clientY - startY) > 3) {
                         isDragging = true;
                         spot.classList.add('dragging');
@@ -299,16 +374,19 @@
                     }
                 };
 
-                document.onmouseup = async function(e) {
+                document.onmouseup = function(e) {
                     document.onmousemove = null;
                     document.onmouseup = null;
 
-                    if (isDragging) {
+                    if (isDragging && isAdmin) {
                         isDragging = false;
                         spot.classList.remove('dragging');
-                        p.x = Math.round((e.clientX / window.innerWidth) * 100);
-                        p.y = Math.round((e.clientY / window.innerHeight) * 100);
-                        await savePlantData(p); // 拖曳放開後更新座標至 API
+                        const finalX = Math.round((e.clientX / window.innerWidth) * 100);
+                        const finalY = Math.round((e.clientY / window.innerHeight) * 100);
+                        
+                        p.x = finalX;
+                        p.y = finalY;
+                        savePlantAPI(p);
                     } else {
                         showDetail(index);
                     }
@@ -319,28 +397,8 @@
         });
     }
 
-    async function savePlantData(plantData) {
-        try {
-            const res = await fetch('/api/plants', {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify(plantData)
-            });
-            const result = await res.json();
-            if (!result.success) {
-                alert("儲存失敗：" + result.message);
-                if (res.status === 401) {
-                    adminToken = null;
-                    updateUIByRole();
-                }
-            }
-        } catch (err) {
-            console.error(err);
-        }
-    }
-
     function startSelectLocationMode() {
-        if (!adminToken) return;
+        if (!isAdmin) return;
         closeOverlay('detail-card');
         closeOverlay('form-card');
         resetForm();
@@ -356,9 +414,9 @@
     }
 
     function showDetail(index) {
-        const p = currentCase.plants[index];
-        currentPlantIndex = index;
-        document.getElementById('detail-icon').innerText = p.icon || "🌱";
+        const p = plants[index];
+        currentViewingIndex = index;
+        document.getElementById('detail-icon').innerText = p.icon || "🌱"; 
         document.getElementById('detail-title').innerText = p.name;
         document.getElementById('detail-img').src = p.img || '';
         document.getElementById('detail-desc').innerText = p.desc || '';
@@ -367,38 +425,64 @@
         document.getElementById('detail-card').style.display = 'block';
     }
 
-    async function savePlant() {
-        if (!adminToken) return;
+    function savePlant() {
+        if (!isAdmin) return;
         const name = document.getElementById('new-name').value.trim();
-        if (!name) return alert('請填寫植物名稱！');
+        if(!name) { alert('請填寫植物名稱！'); return; }
 
+        const currentCase = allCases[currentCaseIndex];
         const plantData = {
             id: document.getElementById('edit-plant-id').value || undefined,
             case_id: currentCase.id,
             name: name,
             icon: document.getElementById('new-icon').value,
             img: document.getElementById('new-img').value,
+            link: document.getElementById('new-link').value.trim(),
             desc: document.getElementById('new-desc').value.trim(),
             care: document.getElementById('new-care').value.trim(),
             x: parseFloat(document.getElementById('new-x').value) || 50,
             y: parseFloat(document.getElementById('new-y').value) || 50
         };
 
-        await savePlantData(plantData);
-        closeOverlay('form-card');
-        await fetchCases();
-        currentCase = allCasesData.find(c => c.id === currentCase.id);
-        renderOverview();
+        savePlantAPI(plantData);
+    }
+
+    function savePlantAPI(plantData) {
+        fetch('/api/plants', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify(plantData)
+        })
+        .then(res => res.json())
+        .then(res => {
+            if(res.success) {
+                alert('✅ 儲存植物資料成功！');
+                closeOverlay('form-card');
+                fetch('/api/cases')
+                    .then(r => r.json())
+                    .then(data => {
+                        allCases = data.data;
+                        plants = allCases[currentCaseIndex].plants || [];
+                        renderOverview();
+                    });
+            } else {
+                alert('儲存失敗：' + res.message);
+            }
+        });
     }
 
     function editCurrentPlant() {
-        if (!adminToken || currentPlantIndex === null) return;
-        const p = currentCase.plants[currentPlantIndex];
+        if (!isAdmin || currentViewingIndex === null) return;
+        const p = plants[currentViewingIndex];
         document.getElementById('edit-plant-id').value = p.id;
         document.getElementById('form-title').innerText = "✏️ 編輯植物資料";
         document.getElementById('new-name').value = p.name;
         document.getElementById('new-icon').value = p.icon || "🌱";
         document.getElementById('new-img').value = p.img || "";
+        document.getElementById('new-link').value = p.link || "";
         document.getElementById('new-desc').value = p.desc || "";
         document.getElementById('new-care').value = p.care || "";
         document.getElementById('new-x').value = p.x;
@@ -408,41 +492,36 @@
         document.getElementById('form-card').style.display = 'block';
     }
 
-    async function deleteCurrentPlant() {
-        if (!adminToken || currentPlantIndex === null) return;
-        const p = currentCase.plants[currentPlantIndex];
-        if (confirm('確定要刪除此植物嗎？')) {
-            try {
-                const res = await fetch(`/api/plants/${p.id}`, {
-                    method: 'DELETE',
-                    headers: getHeaders()
-                });
-                const result = await res.json();
-                if (result.success) {
+    function deleteCurrentPlant() {
+        if (!isAdmin || currentViewingIndex === null) return;
+        const p = plants[currentViewingIndex];
+        if(confirm(`確定要刪除植物『${p.name}』嗎？`)) {
+            fetch(`/api/plants/${p.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + adminToken }
+            })
+            .then(res => res.json())
+            .then(res => {
+                if(res.success) {
+                    alert('已刪除！');
                     closeOverlay('detail-card');
-                    await fetchCases();
-                    currentCase = allCasesData.find(c => c.id === currentCase.id);
+                    plants.splice(currentViewingIndex, 1);
                     renderOverview();
-                } else {
-                    alert(result.message);
                 }
-            } catch (err) {
-                console.error(err);
-            }
+            });
         }
     }
 
-    function openCaseForm(id) {
-        if (!adminToken) return;
-        const c = allCasesData.find(item => item.id === id);
-        if (c) {
-            document.getElementById('case-edit-id').value = c.id;
+    function openCaseForm(idx) {
+        if (!isAdmin) return;
+        document.getElementById('case-edit-index').value = idx;
+        if(idx >= 0) {
+            const c = allCases[idx];
             document.getElementById('case-title-input').value = c.title;
             document.getElementById('case-icon-input').value = c.icon;
             document.getElementById('case-desc-input').value = c.desc;
             document.getElementById('case-bg-input').value = c.bgImage;
         } else {
-            document.getElementById('case-edit-id').value = '';
             document.getElementById('case-title-input').value = '';
             document.getElementById('case-desc-input').value = '';
             document.getElementById('case-bg-input').value = '';
@@ -450,54 +529,47 @@
         document.getElementById('case-modal').style.display = 'block';
     }
 
-    async function saveCase() {
-        if (!adminToken) return;
+    function saveCase() {
+        if (!isAdmin) return;
         const title = document.getElementById('case-title-input').value.trim();
-        if (!title) return alert('請輸入案例名稱');
-
+        if(!title) return alert('請輸入案例名稱');
+        
+        const idx = parseInt(document.getElementById('case-edit-index').value, 10);
         const caseData = {
-            id: document.getElementById('case-edit-id').value || undefined,
+            id: idx >= 0 ? allCases[idx].id : undefined,
             title,
             icon: document.getElementById('case-icon-input').value,
             desc: document.getElementById('case-desc-input').value,
             bgImage: document.getElementById('case-bg-input').value
         };
 
-        try {
-            const res = await fetch('/api/cases', {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify(caseData)
-            });
-            const result = await res.json();
-            if (result.success) {
+        fetch('/api/cases', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify(caseData)
+        })
+        .then(res => res.json())
+        .then(res => {
+            if(res.success) {
+                alert('✅ 儲存案例成功！');
                 closeOverlay('case-modal');
-                fetchCases();
-            } else {
-                alert("儲存失敗：" + result.message);
+                loadDataFromAPI();
             }
-        } catch (err) {
-            console.error(err);
-        }
+        });
     }
 
-    async function deleteCase(id) {
-        if (!adminToken) return;
-        if (confirm('確定刪除此案例？')) {
-            try {
-                const res = await fetch(`/api/cases/${id}`, {
-                    method: 'DELETE',
-                    headers: getHeaders()
-                });
-                const result = await res.json();
-                if (result.success) {
-                    fetchCases();
-                } else {
-                    alert(result.message);
-                }
-            } catch (err) {
-                console.error(err);
-            }
+    function deleteCase(id) {
+        if (!isAdmin) return;
+        if(confirm('確定刪除此案例？')) {
+            fetch(`/api/cases/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + adminToken }
+            })
+            .then(res => res.json())
+            .then(() => loadDataFromAPI());
         }
     }
 
@@ -506,13 +578,13 @@
         document.getElementById('edit-plant-id').value = "";
         document.getElementById('new-name').value = "";
         document.getElementById('new-img').value = "";
+        document.getElementById('new-link').value = "";
         document.getElementById('new-desc').value = "";
         document.getElementById('new-care').value = "";
     }
 
-    // 啟動專案
-    fetchCases();
-    updateUIByRole();
+    loadDataFromAPI();
 </script>
+
 </body>
 </html>
