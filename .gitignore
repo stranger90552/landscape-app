@@ -1,0 +1,13 @@
+# 依賴套件資料夾 (不需要推送到 GitHub，Render 會自動執行 npm install)
+node_modules/
+
+# 本地 SQLite 資料庫 (避免本地測試資料覆蓋線上正式資料)
+*.db
+*.db-journal
+
+# 日誌與系統暫存檔
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.env
