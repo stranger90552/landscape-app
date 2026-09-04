@@ -420,11 +420,10 @@
 
     const defaultBgImg = "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=800&q=80";
 
-    // 💡 自動為 Cloudinary 圖片加上 f_auto,q_auto 的優化處理函式
+    // 自動為 Cloudinary 圖片加上 f_auto,q_auto 的優化處理函式
     function optimizeCloudinaryUrl(url) {
       if (!url) return defaultBgImg;
       if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
-        // 如果網址尚未包含優化參數，自動加上
         if (!url.includes("f_auto") && !url.includes("q_auto")) {
           return url.replace("/upload/", "/upload/f_auto,q_auto/");
         }
@@ -585,7 +584,6 @@
       window.allCases.forEach((c, idx) => {
         const card = document.createElement('div');
         card.className = 'case-card';
-        // 套用 Cloudinary 優化網址
         const bgUrl = optimizeCloudinaryUrl(c.bgImage);
         card.innerHTML = `
           <div class="card-img-wrapper">
@@ -632,7 +630,6 @@
       const c = window.allCases[currentCaseIndex];
       if (!c) return;
       const mapArea = document.getElementById('map-area');
-      // 套用 Cloudinary 優化網址
       document.getElementById('bg-map-img').src = optimizeCloudinaryUrl(c.bgImage);
 
       mapArea.querySelectorAll('.hotspot').forEach(el => el.remove());
@@ -648,35 +645,65 @@
       });
     }
 
+    // 全方向拖曳 + 拖曳放開後彈窗確認是否儲存
     function makeHotspotDraggable(elmnt, pIdx) {
       let isDragging = false;
       let startX = 0, startY = 0;
+      let origX = 0, origY = 0;
+      let tempX = 0, tempY = 0;
 
       elmnt.addEventListener('pointerdown', (e) => {
         if (!isAdmin) return;
         isDragging = false;
         startX = e.clientX;
         startY = e.clientY;
+        
+        const currentPlant = window.allCases[currentCaseIndex].plants[pIdx];
+        origX = currentPlant.x;
+        origY = currentPlant.y;
+        tempX = origX;
+        tempY = origY;
+
+        try {
+          elmnt.setPointerCapture(e.pointerId);
+        } catch(err) {}
 
         const onPointerMove = (moveEvent) => {
-          if (Math.abs(moveEvent.clientX - startX) > 5 || Math.abs(moveEvent.clientY - startY) > 5) {
+          if (Math.abs(moveEvent.clientX - startX) > 3 || Math.abs(moveEvent.clientY - startY) > 3) {
             isDragging = true;
             const rect = document.getElementById('map-area').getBoundingClientRect();
-            let newX = Math.max(0, Math.min(100, (((moveEvent.clientX - rect.left) / rect.width) * 100))).toFixed(2);
-            let newY = Math.max(0, Math.min(100, (((moveEvent.clientY - top) / rect.height) * 100))).toFixed(2);
+            
+            tempX = parseFloat(Math.max(0, Math.min(100, (((moveEvent.clientX - rect.left) / rect.width) * 100))).toFixed(2));
+            tempY = parseFloat(Math.max(0, Math.min(100, (((moveEvent.clientY - rect.top) / rect.height) * 100))).toFixed(2));
 
-            elmnt.style.left = `${newX}%`;
-            elmnt.style.top = `${newY}%`;
-
-            window.allCases[currentCaseIndex].plants[pIdx].x = parseFloat(newX);
-            window.allCases[currentCaseIndex].plants[pIdx].y = parseFloat(newY);
+            elmnt.style.left = `${tempX}%`;
+            elmnt.style.top = `${tempY}%`;
           }
         };
 
-        const onPointerUp = () => {
-          if (isDragging) saveToCloud();
+        const onPointerUp = (upEvent) => {
+          try {
+            elmnt.releasePointerCapture(upEvent.pointerId);
+          } catch(err) {}
+
           document.removeEventListener('pointermove', onPointerMove);
           document.removeEventListener('pointerup', onPointerUp);
+
+          if (isDragging) {
+            const plantName = currentPlant.name || "植物";
+            setTimeout(() => {
+              const confirmMove = confirm(`是否將「${plantName}」移到新位置？`);
+              
+              if (confirmMove) {
+                window.allCases[currentCaseIndex].plants[pIdx].x = tempX;
+                window.allCases[currentCaseIndex].plants[pIdx].y = tempY;
+                saveToCloud();
+              } else {
+                elmnt.style.left = `${origX}%`;
+                elmnt.style.top = `${origY}%`;
+              }
+            }, 50);
+          }
         };
 
         document.addEventListener('pointermove', onPointerMove);
