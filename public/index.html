@@ -225,6 +225,13 @@
       transition: transform 0.15s ease;
       touch-action: none;
       z-index: 5;
+      overflow: hidden;
+    }
+    .hotspot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
     }
     .hotspot.draggable { cursor: move; }
     .hotspot:hover { transform: translate(-50%, -50%) scale(1.25); }
@@ -257,6 +264,15 @@
       border: 1px solid #ccc; 
       border-radius: 6px; 
       font-size: 14px;
+    }
+    
+    .plant-detail-img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      display: none;
     }
   </style>
 </head>
@@ -296,6 +312,7 @@
   <!-- 植物詳細資料彈窗 -->
   <div id="detail-card" class="overlay-card">
     <h3 id="detail-title" style="margin-top:0; color:#1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 8px; font-size: 18px;"></h3>
+    <img id="detail-img" class="plant-detail-img" src="" alt="植物照片">
     <p style="margin: 12px 0 8px 0;"><strong>📌 植物特徵：</strong><br><span id="detail-desc" style="display:inline-block; margin-top:4px; line-height:1.4;"></span></p>
     <p style="margin: 8px 0 16px 0;"><strong>☀️ 照顧指南：</strong><br><span id="detail-care" style="display:inline-block; margin-top:4px; line-height:1.4;"></span></p>
     <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
@@ -331,6 +348,13 @@
           <option value="🍀">🍀 幸運草</option>
           <option value="🍁">🍁 楓葉</option>
         </select>
+      </div>
+      <div class="form-group">
+        <label>植物照片：</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="plant-img-input" value="" placeholder="請輸入圖片網址或從 Cloudinary 上傳" />
+          <button type="button" class="btn btn-cloud" onclick="uploadToCloudinary('plant-img-input')">☁️ Cloudinary 圖庫/上傳</button>
+        </div>
       </div>
       <div class="form-group">
         <label>外觀特徵說明：</label>
@@ -439,8 +463,8 @@
         bgImage: defaultBgImg,
         icon: "🏡",
         plants: [
-          { id: 0, name: "向日葵 (Sunflower)", icon: "🌸", x: 15, y: 25, desc: "碩大的金色花盤，具向光性。", care: "陽光充足，水分需求高。" },
-          { id: 1, name: "薰衣草 (Lavender)", icon: "🌿", x: 55, y: 25, desc: "紫色穗狀花序，富含芳香油。", care: "極度怕潮濕，土需極佳排水。" }
+          { id: 0, name: "向日葵 (Sunflower)", icon: "🌸", image: "", x: 15, y: 25, desc: "碩大的金色花盤，具向光性。", care: "陽光充足，水分需求高。" },
+          { id: 1, name: "薰衣草 (Lavender)", icon: "🌿", image: "", x: 55, y: 25, desc: "紫色穗狀花序，富含芳香油。", care: "極度怕潮濕，土需極佳排水。" }
         ]
       },
       {
@@ -450,7 +474,7 @@
         bgImage: defaultBgImg,
         icon: "🌿",
         plants: [
-          { id: 2, name: "龜背芋 (Monstera)", icon: "🌱", x: 35, y: 55, desc: "葉片具自然羽狀裂口與孔洞。", care: "室內明亮散射光，保持通風。" }
+          { id: 2, name: "龜背芋 (Monstera)", icon: "🌱", image: "", x: 35, y: 55, desc: "葉片具自然羽狀裂口與孔洞。", care: "室內明亮散射光，保持通風。" }
         ]
       },
       {
@@ -460,7 +484,7 @@
         bgImage: defaultBgImg,
         icon: "🌵",
         plants: [
-          { id: 3, name: "多肉植物-玉露", icon: "🌿", x: 20, y: 75, desc: "葉片肉質肥厚，葉尖呈半透明窗狀。", care: "喜好半陰涼散射光，避免曬傷。" }
+          { id: 3, name: "多肉植物-玉露", icon: "🌿", image: "", x: 20, y: 75, desc: "葉片肉質肥厚，葉尖呈半透明窗狀。", care: "喜好半陰涼散射光，避免曬傷。" }
         ]
       }
     ];
@@ -639,7 +663,16 @@
         spot.className = 'hotspot' + (isAdmin ? ' draggable' : '');
         spot.style.left = `${p.x}%`;
         spot.style.top = `${p.y}%`;
-        spot.textContent = p.icon || '🌱';
+        
+        if (p.image) {
+          const img = document.createElement('img');
+          img.src = optimizeCloudinaryUrl(p.image);
+          img.alt = p.name || '植物';
+          spot.appendChild(img);
+        } else {
+          spot.textContent = p.icon || '🌱';
+        }
+
         makeHotspotDraggable(spot, pIdx);
         mapArea.appendChild(spot);
       });
@@ -724,6 +757,7 @@
       document.getElementById('edit-plant-index').value = "-1";
       document.getElementById('plant-name').value = "";
       document.getElementById('plant-icon').value = "🌱";
+      document.getElementById('plant-img-input').value = "";
       document.getElementById('plant-desc').value = "";
       document.getElementById('plant-care').value = "";
       document.getElementById('plant-x').value = (((e.clientX - rect.left) / rect.width) * 100).toFixed(2);
@@ -747,6 +781,15 @@
       currentPlantIndex = pIdx;
       const p = window.allCases[currentCaseIndex].plants[pIdx];
       document.getElementById('detail-title').textContent = `${p.icon || '🌱'} ${p.name}`;
+      
+      const imgEl = document.getElementById('detail-img');
+      if (p.image) {
+        imgEl.src = optimizeCloudinaryUrl(p.image);
+        imgEl.style.display = 'block';
+      } else {
+        imgEl.style.display = 'none';
+      }
+
       document.getElementById('detail-desc').textContent = p.desc || '暫無說明';
       document.getElementById('detail-care').textContent = p.care || '暫無指南';
       document.getElementById('detail-card').style.display = 'block';
@@ -757,6 +800,7 @@
       document.getElementById('edit-plant-index').value = currentPlantIndex;
       document.getElementById('plant-name').value = p.name;
       document.getElementById('plant-icon').value = p.icon || '🌱';
+      document.getElementById('plant-img-input').value = p.image || '';
       document.getElementById('plant-desc').value = p.desc || '';
       document.getElementById('plant-care').value = p.care || '';
       document.getElementById('plant-x').value = p.x;
@@ -778,6 +822,7 @@
       const plantData = {
         name: document.getElementById('plant-name').value,
         icon: document.getElementById('plant-icon').value,
+        image: document.getElementById('plant-img-input').value || '',
         desc: document.getElementById('plant-desc').value,
         care: document.getElementById('plant-care').value,
         x: parseFloat(document.getElementById('plant-x').value),
