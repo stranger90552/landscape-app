@@ -19,7 +19,7 @@
       user-select: none; 
     }
     
-    /* 修正 IMG_6753: 頁頭改為 Flex 佈局，防止按鈕遮擋文字 */
+    /* 頂部 Header 佈局 */
     .header-section {
       padding: 20px 15px 10px 15px;
       max-width: 1200px;
@@ -182,7 +182,7 @@
       background: #1b5e20;
     }
     
-    /* 修正 IMG_6755: 地圖容器支援手機滑動瀏覽 */
+    /* 地圖視圖與橫向滑動 */
     #garden-view { 
       display: none; 
       position: relative; 
@@ -229,7 +229,7 @@
     .hotspot.draggable { cursor: move; }
     .hotspot:hover { transform: translate(-50%, -50%) scale(1.25); }
 
-    /* 修正 IMG_6754: 說明彈窗留出適當左右邊界 */
+    /* 彈窗樣式 */
     .overlay-card { 
       display: none; 
       position: fixed; 
@@ -420,6 +420,18 @@
 
     const defaultBgImg = "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=800&q=80";
 
+    // 💡 自動為 Cloudinary 圖片加上 f_auto,q_auto 的優化處理函式
+    function optimizeCloudinaryUrl(url) {
+      if (!url) return defaultBgImg;
+      if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
+        // 如果網址尚未包含優化參數，自動加上
+        if (!url.includes("f_auto") && !url.includes("q_auto")) {
+          return url.replace("/upload/", "/upload/f_auto,q_auto/");
+        }
+      }
+      return url;
+    }
+
     const defaultCases = [
       {
         id: "balcony",
@@ -573,9 +585,11 @@
       window.allCases.forEach((c, idx) => {
         const card = document.createElement('div');
         card.className = 'case-card';
+        // 套用 Cloudinary 優化網址
+        const bgUrl = optimizeCloudinaryUrl(c.bgImage);
         card.innerHTML = `
           <div class="card-img-wrapper">
-            <img src="${c.bgImage || defaultBgImg}" alt="${c.title}" />
+            <img src="${bgUrl}" alt="${c.title}" />
             <div class="card-badge">${c.icon || '🏡'}</div>
           </div>
           <div class="card-content">
@@ -618,7 +632,8 @@
       const c = window.allCases[currentCaseIndex];
       if (!c) return;
       const mapArea = document.getElementById('map-area');
-      document.getElementById('bg-map-img').src = c.bgImage || defaultBgImg;
+      // 套用 Cloudinary 優化網址
+      document.getElementById('bg-map-img').src = optimizeCloudinaryUrl(c.bgImage);
 
       mapArea.querySelectorAll('.hotspot').forEach(el => el.remove());
 
@@ -648,7 +663,7 @@
             isDragging = true;
             const rect = document.getElementById('map-area').getBoundingClientRect();
             let newX = Math.max(0, Math.min(100, (((moveEvent.clientX - rect.left) / rect.width) * 100))).toFixed(2);
-            let newY = Math.max(0, Math.min(100, (((moveEvent.clientY - rect.top) / rect.height) * 100))).toFixed(2);
+            let newY = Math.max(0, Math.min(100, (((moveEvent.clientY - top) / rect.height) * 100))).toFixed(2);
 
             elmnt.style.left = `${newX}%`;
             elmnt.style.top = `${newY}%`;
