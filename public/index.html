@@ -4,8 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>iPlants 圖解植栽設計展覽館</title>
+  <!-- 引入 Cloudinary Media Library API 腳本 -->
   <script src="https://media-library.cloudinary.com/global/all.js" type="text/javascript"></script>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body { 
       font-family: "Microsoft JhengHei", Arial, sans-serif; 
       margin: 0; 
@@ -15,32 +19,40 @@
       user-select: none; 
     }
     
+    /* 修正 IMG_6753: 頁頭改為 Flex 佈局，防止按鈕遮擋文字 */
     .header-section {
+      padding: 20px 15px 10px 15px;
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-title-container {
       text-align: center;
-      padding: 30px 20px 10px 20px;
-      position: relative;
+      width: 100%;
     }
     .header-section h1 {
       margin: 0;
-      font-size: 28px;
+      font-size: 24px;
       color: #1b5e20;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
     .header-section p {
-      margin: 8px 0 0 0;
+      margin: 6px 0 0 0;
       color: #666;
       font-size: 14px;
     }
     .top-right-admin {
-      position: absolute;
-      top: 20px;
-      right: 20px;
+      margin-top: 5px;
     }
 
-    .container { padding: 20px; max-width: 1200px; margin: 0 auto; }
+    .container { padding: 15px; max-width: 1200px; margin: 0 auto; }
     
     .btn { 
       background: #2e7d32; 
@@ -64,9 +76,9 @@
 
     .cards-grid { 
       display: grid; 
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
-      gap: 25px; 
-      margin-top: 20px; 
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+      gap: 20px; 
+      margin-top: 15px; 
     }
 
     .case-card { 
@@ -170,15 +182,27 @@
       background: #1b5e20;
     }
     
+    /* 修正 IMG_6755: 地圖容器支援手機滑動瀏覽 */
     #garden-view { 
       display: none; 
       position: relative; 
       width: 100vw; 
       height: 100vh; 
       background: #c8e6c9; 
+      overflow: auto; 
+      -webkit-overflow-scrolling: touch;
     }
-    .map-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
-    .map-container img { width: 100%; height: 100%; object-fit: cover; }
+    .map-container { 
+      position: relative; 
+      min-width: 800px; 
+      height: 100%; 
+    }
+    .map-container img { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+      display: block;
+    }
     
     .map-container.adding-mode {
       cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text y="20" font-size="20">📍</text></svg>') 12 24, crosshair !important;
@@ -200,23 +224,27 @@
       box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
       transition: transform 0.15s ease;
       touch-action: none;
+      z-index: 5;
     }
     .hotspot.draggable { cursor: move; }
     .hotspot:hover { transform: translate(-50%, -50%) scale(1.25); }
 
+    /* 修正 IMG_6754: 說明彈窗留出適當左右邊界 */
     .overlay-card { 
       display: none; 
-      position: absolute; 
+      position: fixed; 
       top: 50%; 
       left: 50%; 
       transform: translate(-50%, -50%); 
       background: white; 
-      padding: 25px; 
-      border-radius: 12px; 
+      padding: 20px; 
+      border-radius: 16px; 
       box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
       z-index: 100; 
+      width: 85%; 
       max-width: 480px; 
-      width: 90%; 
+      max-height: 85vh;
+      overflow-y: auto;
     }
     
     .admin-only { display: none; }
@@ -226,7 +254,6 @@
     .form-group input, .form-group select, .form-group textarea { 
       width: 100%; 
       padding: 8px 10px; 
-      box-sizing: border-box; 
       border: 1px solid #ccc; 
       border-radius: 6px; 
       font-size: 14px;
@@ -235,14 +262,18 @@
 </head>
 <body>
 
+  <!-- 頂部頁頭區 -->
   <div class="header-section">
-    <h1>🌱 iPlants 圖解植栽設計展覽館</h1>
-    <p>請選擇您想要探索的案例</p>
+    <div class="header-title-container">
+      <h1>🌱 iPlants 圖解植栽設計展覽館</h1>
+      <p>請選擇您想要探索的案例</p>
+    </div>
     <div class="top-right-admin">
       <button id="toggle-admin-btn" class="btn" onclick="toggleAdminMode()">🔒 訪客模式</button>
     </div>
   </div>
 
+  <!-- 1. 案例選擇頁 -->
   <div id="case-selection-view" class="container">
     <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
       <button class="btn admin-only" onclick="openCaseModal(-1)">➕ 新增案例</button>
@@ -250,8 +281,9 @@
     <div id="cases-container" class="cards-grid"></div>
   </div>
 
+  <!-- 2. 地圖詳細視圖 -->
   <div id="garden-view">
-    <div style="position: absolute; top: 20px; left: 20px; z-index: 10; display: flex; gap: 10px;">
+    <div style="position: fixed; top: 15px; left: 15px; z-index: 20; display: flex; gap: 8px;">
       <button class="btn btn-back" onclick="backToCases()">⬅️ 返回案例清單</button>
       <button class="btn admin-only" onclick="enableMapClickAdd()">📍 新增植物</button>
     </div>
@@ -261,12 +293,13 @@
     </div>
   </div>
 
+  <!-- 植物詳細資料彈窗 -->
   <div id="detail-card" class="overlay-card">
-    <h3 id="detail-title" style="margin-top:0; color:#1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 5px;"></h3>
-    <p><strong>📌 植物特徵：</strong><br><span id="detail-desc"></span></p>
-    <p><strong>☀️ 照顧指南：</strong><br><span id="detail-care"></span></p>
-    <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
-      <div style="display: flex; gap: 8px;">
+    <h3 id="detail-title" style="margin-top:0; color:#1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 8px; font-size: 18px;"></h3>
+    <p style="margin: 12px 0 8px 0;"><strong>📌 植物特徵：</strong><br><span id="detail-desc" style="display:inline-block; margin-top:4px; line-height:1.4;"></span></p>
+    <p style="margin: 8px 0 16px 0;"><strong>☀️ 照顧指南：</strong><br><span id="detail-care" style="display:inline-block; margin-top:4px; line-height:1.4;"></span></p>
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+      <div style="display: flex; gap: 6px;">
         <button class="btn btn-warning admin-only" onclick="editCurrentPlant()">✏️ 編輯</button>
         <button class="btn btn-danger admin-only" onclick="deleteCurrentPlant()">🗑️ 刪除</button>
       </div>
@@ -274,8 +307,9 @@
     </div>
   </div>
 
+  <!-- 植物新增/編輯彈窗 -->
   <div id="plant-form-card" class="overlay-card">
-    <h3 id="plant-form-title" style="margin-top:0; color:#1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 5px;">🌱 填寫植物資料</h3>
+    <h3 id="plant-form-title" style="margin-top:0; color:#1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 8px;">🌱 填寫植物資料</h3>
     <form id="plant-form">
       <input type="hidden" id="edit-plant-index" value="-1">
       <div class="form-group">
@@ -320,8 +354,9 @@
     </form>
   </div>
 
+  <!-- 案例新增/編輯彈窗 -->
   <div id="case-modal-card" class="overlay-card">
-    <h3 id="case-modal-title" style="margin-top:0; color:#1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 5px;">➕ 新增案例</h3>
+    <h3 id="case-modal-title" style="margin-top:0; color:#1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 8px;">➕ 新增案例</h3>
     <form id="case-modal-form">
       <input type="hidden" id="edit-case-index" value="-1">
       <div class="form-group">
@@ -358,11 +393,11 @@
     </form>
   </div>
 
+  <!-- Firebase 模組化 SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // 真正的 Firebase 金鑰
     const firebaseConfig = {
       apiKey: "AIzaSyDicCwQKF9xxUnYAWL949E007Z2UQ95-Bc",
       authDomain: "landscape-app-a076d.firebaseapp.com",
@@ -421,12 +456,10 @@
 
     window.allCases = [];
 
-    // 同步雲端資料到全域
     function saveToCloud() {
       set(casesRef, window.allCases);
     }
 
-    // 實時監聽 Firebase 資料庫變化
     onValue(casesRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -444,7 +477,6 @@
       }
     });
 
-    // Cloudinary 上傳
     window.uploadToCloudinary = function(targetInputId) {
       if (!isAdmin) return alert('需要管理員權限！');
       cloudinary.openMediaLibrary(
@@ -575,7 +607,7 @@
     window.backToCases = function() {
       disableMapClickAdd();
       document.getElementById('garden-view').style.display = 'none';
-      document.querySelector('.header-section').style.display = 'block';
+      document.querySelector('.header-section').style.display = 'flex';
       document.getElementById('case-selection-view').style.display = 'block';
       closeCard('detail-card');
       closeCard('plant-form-card');
