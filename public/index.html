@@ -227,12 +227,6 @@
       z-index: 5;
       overflow: hidden;
     }
-    .hotspot img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      border-radius: 50%;
-    }
     .hotspot.draggable { cursor: move; }
     .hotspot:hover { transform: translate(-50%, -50%) scale(1.25); }
 
@@ -444,7 +438,6 @@
 
     const defaultBgImg = "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=800&q=80";
 
-    // 自動為 Cloudinary 圖片加上 f_auto,q_auto 的優化處理函式
     function optimizeCloudinaryUrl(url) {
       if (!url) return defaultBgImg;
       if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
@@ -664,21 +657,14 @@
         spot.style.left = `${p.x}%`;
         spot.style.top = `${p.y}%`;
         
-        if (p.image) {
-          const img = document.createElement('img');
-          img.src = optimizeCloudinaryUrl(p.image);
-          img.alt = p.name || '植物';
-          spot.appendChild(img);
-        } else {
-          spot.textContent = p.icon || '🌱';
-        }
+        // 修正重點：不論是否有 p.image，地圖小圖示統一顯示 Emoji
+        spot.textContent = p.icon || '🌱';
 
         makeHotspotDraggable(spot, pIdx);
         mapArea.appendChild(spot);
       });
     }
 
-    // 全方向拖曳 + 拖曳放開後彈窗確認是否儲存
     function makeHotspotDraggable(elmnt, pIdx) {
       let isDragging = false;
       let startX = 0, startY = 0;
