@@ -279,7 +279,7 @@
       <p>請選擇您想要探索的案例</p>
     </div>
     <div class="top-right-admin">
-      <button id="toggle-admin-btn" class="btn" onclick="toggleAdminMode()">🔒 訪客模式</button>
+      <button id="toggle-admin-btn" class="btn" onclick="toggleAdminMode()">🔒 管理員登入</button>
     </div>
   </div>
 
@@ -415,6 +415,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDicCwQKF9xxUnYAWL949E007Z2UQ95-Bc",
@@ -429,6 +430,7 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+    const auth = getAuth(app);
     const casesRef = ref(db, 'iplants_cases');
 
     let isAdmin = false;
@@ -485,7 +487,10 @@
     window.allCases = [];
 
     function saveToCloud() {
-      set(casesRef, window.allCases);
+      set(casesRef, window.allCases).catch(err => {
+        alert("儲存失敗：您沒有修改權限或未登入授權帳號！");
+        console.error(err);
+      });
     }
 
     onValue(casesRef, (snapshot) => {
@@ -497,7 +502,7 @@
         }));
       } else {
         window.allCases = defaultCases;
-        saveToCloud();
+        if (isAdmin) saveToCloud();
       }
       renderCases();
       if (currentCaseIndex !== null && window.allCases[currentCaseIndex]) {
@@ -518,17 +523,38 @@
       );
     };
 
-    window.toggleAdminMode = function() {
-      if (isAdmin) {
-        isAdmin = false;
-        updateModeUI();
+    // 監聽 Firebase 驗證狀態
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        isAdmin = true;
       } else {
-        const pwd = prompt('請輸入管理員密碼：');
-        if (pwd === 'tsai66') {
-          isAdmin = true;
-          updateModeUI();
-        } else if (pwd !== null) {
-          alert('密碼錯誤！');
+        isAdmin = false;
+      }
+      updateModeUI();
+    });
+
+    // 登入 / 登出 切換
+    window.toggleAdminMode = async function() {
+      if (isAdmin) {
+        try {
+          await signOut(auth);
+          alert('已成功登出管理員身分');
+        } catch (error) {
+          alert('登出失敗：' + error.message);
+        }
+      } else {
+        const email = prompt('請輸入管理員 Email：');
+        if (!email) return;
+        
+        const password = prompt('請輸入管理員密碼：');
+        if (!password) return;
+
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+          alert('管理員登入成功！');
+        } catch (error) {
+          alert('登入失敗，帳號或密碼錯誤！');
+          console.error(error);
         }
       }
     };
@@ -538,11 +564,11 @@
       const adminElements = document.querySelectorAll('.admin-only');
 
       if (isAdmin) {
-        toggleBtn.textContent = '🔓 管理員模式 (登出)';
+        toggleBtn.textContent = '🔓 管理員登出';
         toggleBtn.className = 'btn btn-warning';
         adminElements.forEach(el => el.style.display = 'inline-block');
       } else {
-        toggleBtn.textContent = '🔒 訪客模式';
+        toggleBtn.textContent = '🔒 管理員登入';
         toggleBtn.className = 'btn';
         adminElements.forEach(el => el.style.display = 'none');
       }
@@ -656,8 +682,6 @@
         spot.className = 'hotspot' + (isAdmin ? ' draggable' : '');
         spot.style.left = `${p.x}%`;
         spot.style.top = `${p.y}%`;
-        
-        // 修正重點：不論是否有 p.image，地圖小圖示統一顯示 Emoji
         spot.textContent = p.icon || '🌱';
 
         makeHotspotDraggable(spot, pIdx);
