@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>iPlants 圖解植栽設計展覽館</title>
-  <script src="https://media-library.cloudinary.com/global/all.js" type="text/javascript"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: "Microsoft JhengHei", Arial, sans-serif; margin: 0; padding: 0; background: #eef5ed; color: #333; user-select: none; }
@@ -53,6 +52,9 @@
   </style>
 </head>
 <body>
+
+  <!-- 隱藏的檔案選擇器 (用於 Cloudinary 上傳) -->
+  <input type="file" id="cloudinary-file-input" accept="image/*" style="display: none;" />
 
   <div class="header-section">
     <div class="header-title-container">
@@ -130,8 +132,8 @@
       <div class="form-group">
         <label>植物照片：</label>
         <div style="display: flex; gap: 8px;">
-          <input type="text" id="plant-img-input" value="" placeholder="請輸入圖片網址或從 Cloudinary 上傳" />
-          <button type="button" class="btn btn-cloud" onclick="uploadToCloudinary('plant-img-input')">☁️ Cloudinary 圖庫/上傳</button>
+          <input type="text" id="plant-img-input" value="" placeholder="請輸入圖片網址或選擇檔案上傳" />
+          <button type="button" class="btn btn-cloud" onclick="uploadToCloudinary('plant-img-input')">☁️ 上傳圖片</button>
         </div>
       </div>
       <div class="form-group">
@@ -175,8 +177,8 @@
       <div class="form-group">
         <label>背景地圖圖片：</label>
         <div style="display: flex; gap: 8px;">
-          <input type="text" id="case-bg-input" value="" placeholder="請輸入圖片網址或從 Cloudinary 上傳" />
-          <button type="button" class="btn btn-cloud" onclick="uploadToCloudinary('case-bg-input')">☁️ Cloudinary 圖庫/上傳</button>
+          <input type="text" id="case-bg-input" value="" placeholder="請輸入圖片網址或選擇檔案上傳" />
+          <button type="button" class="btn btn-cloud" onclick="uploadToCloudinary('case-bg-input')">☁️ 上傳圖片</button>
         </div>
       </div>
       <div style="display: flex; gap: 10px; margin-top: 15px;">
@@ -235,32 +237,11 @@
           { id: 0, name: "向日葵 (Sunflower)", icon: "🌸", image: "", x: 15, y: 25, desc: "碩大的金色花盤，具向光性。", care: "陽光充足，水分需求高。" },
           { id: 1, name: "薰衣草 (Lavender)", icon: "🌿", image: "", x: 55, y: 25, desc: "紫色穗狀花序，富含芳香油。", care: "極度怕潮濕，土需極佳排水。" }
         ]
-      },
-      {
-        id: "indoor",
-        title: "室內森林觀葉風格",
-        desc: "精選耐陰大型觀葉植物，為居家客廳與辦公室打造淨化空氣的天然綠洲。",
-        bgImage: defaultBgImg,
-        icon: "🌿",
-        plants: [
-          { id: 2, name: "龜背芋 (Monstera)", icon: "🌱", image: "", x: 35, y: 55, desc: "葉片具自然羽狀裂口與孔洞。", care: "室內明亮散射光，保持通風。" }
-        ]
-      },
-      {
-        id: "succulent",
-        title: "頂樓陽光多肉樂園",
-        desc: "適合頂樓全日照環境，集結各式肥厚療癒的多肉與仙人掌景觀設計。",
-        bgImage: defaultBgImg,
-        icon: "🌵",
-        plants: [
-          { id: 3, name: "多肉植物-玉露", icon: "🌿", image: "", x: 20, y: 75, desc: "葉片肉質肥厚，葉尖呈半透明窗狀。", care: "喜好半陰涼散射光，避免曬傷。" }
-        ]
       }
     ];
 
     window.allCases = [];
 
-    // 將儲存邏輯改為呼叫後端 API
     async function saveToCloud() {
       const user = auth.currentUser;
       if (!user) {
@@ -306,17 +287,44 @@
       }
     });
 
+    // 💡 升級：使用 Cloudinary Unsigned API 安全上傳圖片
     window.uploadToCloudinary = function(targetInputId) {
       if (!isAdmin) return alert('需要管理員權限！');
-      cloudinary.openMediaLibrary(
-        { cloud_name: 'kgem7ix6', api_key: '777736999672942', multiple: false },
-        { insertHandler: (data) => {
-            if (data.assets && data.assets.length > 0) {
-              document.getElementById(targetInputId).value = data.assets[0].secure_url;
-            }
+
+      // 💡 請將此處替換為您的 Cloud Name 與 設定好的 Unsigned Preset 名稱
+      const CLOUD_NAME = 'kgem7ix6';
+      const UPLOAD_PRESET = 'ml_default'; // 請確認 Cloudinary 後台中的 Preset 名稱與 Mode: Unsigned
+
+      const fileInput = document.getElementById('cloudinary-file-input');
+      fileInput.value = ''; // 清空歷史選取
+      fileInput.click();
+
+      fileInput.onchange = async () => {
+        if (!fileInput.files || fileInput.files.length === 0) return;
+        const file = fileInput.files[0];
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', UPLOAD_PRESET);
+
+        try {
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: 'POST',
+            body: formData
+          });
+
+          const data = await res.json();
+          if (data.secure_url) {
+            document.getElementById(targetInputId).value = data.secure_url;
+            alert('圖片上傳成功！');
+          } else {
+            throw new Error(data.error ? data.error.message : '上傳失敗');
           }
+        } catch (err) {
+          alert('上傳發生錯誤：' + err.message);
+          console.error(err);
         }
-      );
+      };
     };
 
     onAuthStateChanged(auth, (user) => {

@@ -1,8 +1,9 @@
 const express = require('express');
 const admin = require('firebase-admin');
 const path = require('path');
+const cors = require('cors');
 
-// 初始化 Firebase Admin (支援本地讀取 JSON 檔案，或雲端讀取環境變數)
+// 初始化 Firebase Admin
 if (process.env.FIREBASE_CREDENTIALS_JSON) {
   const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS_JSON);
   admin.initializeApp({
@@ -20,10 +21,19 @@ if (process.env.FIREBASE_CREDENTIALS_JSON) {
 const db = admin.database();
 const app = express();
 
+// 啟用 CORS 防護
+app.use(cors());
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 中介軟體：驗證前端傳來的 Token 是否為合法管理員
+// 💡 1. 在陣列中填入兩個（或多個）允許的管理員 Email
+const ADMIN_EMAILS = [
+  'stranger90552@gmail.com', // 👈 第一位管理員 Email
+  'tsaivege@gmail.com'  // 👈 第二位管理員 Email
+];
+
+// 💡 2. 安全的中介軟體：檢查發送請求者的 Email 是否在白名單內
 async function verifyAdmin(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -32,14 +42,20 @@ async function verifyAdmin(req, res, next) {
   const token = authHeader.split('Bearer ')[1];
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
+    
+    // 比對 Token 中的 Email 是否屬於 ADMIN_EMAILS 白名單成員
+    if (!decodedToken.email || !ADMIN_EMAILS.includes(decodedToken.email)) {
+      return res.status(403).json({ error: '拒絕存取：此帳號無管理員寫入權限' });
+    }
+
     req.user = decodedToken;
     next();
   } catch (error) {
-    res.status(403).json({ error: '拒絕存取：無效的管理員身分' });
+    res.status(403).json({ error: '拒絕存取：無效的身分憑證' });
   }
 }
 
-// 安全的寫入 API
+// 安全寫入 API
 app.post('/api/cases', verifyAdmin, async (req, res) => {
   try {
     const casesData = req.body;
