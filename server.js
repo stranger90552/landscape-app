@@ -2,6 +2,7 @@ const express = require('express');
 const admin = require('firebase-admin');
 const path = require('path');
 const cors = require('cors');
+const crypto = require('crypto');
 
 // 初始化 Firebase Admin
 if (process.env.FIREBASE_CREDENTIALS_JSON) {
@@ -21,19 +22,17 @@ if (process.env.FIREBASE_CREDENTIALS_JSON) {
 const db = admin.database();
 const app = express();
 
-// 啟用 CORS 防護
 app.use(cors());
-
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 💡 1. 在陣列中填入兩個（或多個）允許的管理員 Email
+// 管理員 Email 白名單
 const ADMIN_EMAILS = [
-  'stranger90552@gmail.com', // 👈 第一位管理員 Email
-  'tsaivege@gmail.com'  // 👈 第二位管理員 Email
+  'stranger90552@gmail.com',
+  'tsaivege@gmail.com'
 ];
 
-// 💡 2. 安全的中介軟體：檢查發送請求者的 Email 是否在白名單內
+// 驗證權限的中介軟體
 async function verifyAdmin(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -43,9 +42,8 @@ async function verifyAdmin(req, res, next) {
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
     
-    // 比對 Token 中的 Email 是否屬於 ADMIN_EMAILS 白名單成員
     if (!decodedToken.email || !ADMIN_EMAILS.includes(decodedToken.email)) {
-      return res.status(403).json({ error: '拒絕存取：此帳號無管理員寫入權限' });
+      return res.status(403).json({ error: '拒絕存取：此帳號無管理員權限' });
     }
 
     req.user = decodedToken;
@@ -55,7 +53,35 @@ async function verifyAdmin(req, res, next) {
   }
 }
 
-// 安全寫入 API
+// 產生 Cloudinary Media Library 安全簽名 API
+app.get('/api/cloudinary-signature', verifyAdmin, (req, res) => {
+  try {
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    const cloudName = 'kgem7ix6';
+
+    if (!apiKey || !apiSecret) {
+      return res.status(500).json({ error: '伺服器未設定 Cloudinary API Key 或 Secret' });
+    }
+
+    // 依據 Cloudinary 規範計算 SHA-1 簽名
+    const signature = crypto.createHash('sha1')
+      .update(`timestamp=${timestamp}${apiSecret}`)
+      .digest('hex');
+
+    res.json({
+      timestamp: timestamp,
+      signature: signature,
+      apiKey: apiKey,
+      cloudName: cloudName
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 儲存案例 API
 app.post('/api/cases', verifyAdmin, async (req, res) => {
   try {
     const casesData = req.body;

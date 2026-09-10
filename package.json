@@ -1,5 +1,5 @@
 {
-  "name": "iplants-app",
+  "name": "landscape-app",
   "version": "1.0.0",
   "description": "iPlants Exhibition Hall Backend",
   "main": "server.js",

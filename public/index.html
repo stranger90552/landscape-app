@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>iPlants 圖解植栽設計展覽館</title>
+  
+  <!-- 💡 引入 Cloudinary Media Library 官方 SDK (方案 B) -->
+  <script src="https://media-library.cloudinary.com/global/all.js" type="text/javascript"></script>
+
   <style>
     * { box-sizing: border-box; }
     body { font-family: "Microsoft JhengHei", Arial, sans-serif; margin: 0; padding: 0; background: #eef5ed; color: #333; user-select: none; }
@@ -52,9 +56,6 @@
   </style>
 </head>
 <body>
-
-  <!-- 隱藏的檔案選擇器 (用於 Cloudinary 上傳) -->
-  <input type="file" id="cloudinary-file-input" accept="image/*" style="display: none;" />
 
   <div class="header-section">
     <div class="header-title-container">
@@ -132,8 +133,8 @@
       <div class="form-group">
         <label>植物照片：</label>
         <div style="display: flex; gap: 8px;">
-          <input type="text" id="plant-img-input" value="" placeholder="請輸入圖片網址或選擇檔案上傳" />
-          <button type="button" class="btn btn-cloud" onclick="uploadToCloudinary('plant-img-input')">☁️ 上傳圖片</button>
+          <input type="text" id="plant-img-input" value="" placeholder="請輸入圖片網址或從媒體庫選擇" />
+          <button type="button" class="btn btn-cloud" onclick="openCloudinaryMediaLibrary('plant-img-input')">🖼️ 選擇 / 上傳圖片</button>
         </div>
       </div>
       <div class="form-group">
@@ -177,8 +178,8 @@
       <div class="form-group">
         <label>背景地圖圖片：</label>
         <div style="display: flex; gap: 8px;">
-          <input type="text" id="case-bg-input" value="" placeholder="請輸入圖片網址或選擇檔案上傳" />
-          <button type="button" class="btn btn-cloud" onclick="uploadToCloudinary('case-bg-input')">☁️ 上傳圖片</button>
+          <input type="text" id="case-bg-input" value="" placeholder="請輸入圖片網址或從媒體庫選擇" />
+          <button type="button" class="btn btn-cloud" onclick="openCloudinaryMediaLibrary('case-bg-input')">🖼️ 選擇 / 上傳圖片</button>
         </div>
       </div>
       <div style="display: flex; gap: 10px; margin-top: 15px;">
@@ -287,44 +288,48 @@
       }
     });
 
-    // 💡 升級：使用 Cloudinary Unsigned API 安全上傳圖片
-    window.uploadToCloudinary = function(targetInputId) {
+    // 💡 呼叫 Cloudinary Media Library (方案 B)
+    window.openCloudinaryMediaLibrary = async function(targetInputId) {
       if (!isAdmin) return alert('需要管理員權限！');
 
-      // 💡 請將此處替換為您的 Cloud Name 與 設定好的 Unsigned Preset 名稱
-      const CLOUD_NAME = 'kgem7ix6';
-      const UPLOAD_PRESET = 'iPlants_preset'; // 請確認 Cloudinary 後台中的 Preset 名稱與 Mode: Unsigned
+      const user = auth.currentUser;
+      if (!user) return alert('請先登入管理員帳號！');
 
-      const fileInput = document.getElementById('cloudinary-file-input');
-      fileInput.value = ''; // 清空歷史選取
-      fileInput.click();
-
-      fileInput.onchange = async () => {
-        if (!fileInput.files || fileInput.files.length === 0) return;
-        const file = fileInput.files[0];
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', UPLOAD_PRESET);
-
-        try {
-          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-            method: 'POST',
-            body: formData
-          });
-
-          const data = await res.json();
-          if (data.secure_url) {
-            document.getElementById(targetInputId).value = data.secure_url;
-            alert('圖片上傳成功！');
-          } else {
-            throw new Error(data.error ? data.error.message : '上傳失敗');
+      try {
+        const token = await user.getIdToken();
+        
+        // 1. 向後端請求權限簽名
+        const res = await fetch('/api/cloudinary-signature', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
-        } catch (err) {
-          alert('上傳發生錯誤：' + err.message);
-          console.error(err);
-        }
-      };
+        });
+
+        const config = await res.json();
+        if (!res.ok) throw new Error(config.error || '無法取得 Media Library 簽名');
+
+        // 2. 開啟 Cloudinary 媒體庫視窗
+        window.cloudinary.openMediaLibrary({
+          cloud_name: config.cloudName,
+          api_key: config.apiKey,
+          timestamp: config.timestamp,
+          signature: config.signature,
+          multiple: false
+        }, {
+          insertHandler: (data) => {
+            if (data.assets && data.assets.length > 0) {
+              const selectedUrl = data.assets[0].secure_url;
+              document.getElementById(targetInputId).value = selectedUrl;
+              alert('成功選擇圖片！');
+            }
+          }
+        });
+
+      } catch (err) {
+        alert('開啟媒體庫失敗：' + err.message);
+        console.error(err);
+      }
     };
 
     onAuthStateChanged(auth, (user) => {
