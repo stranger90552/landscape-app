@@ -108,7 +108,7 @@ app.get('/api/cloudinary-signature', verifyAdmin, (req, res) => {
 app.post('/api/cases', verifyAdmin, async (req, res) => {
   try {
     const casesData = req.body;
-    const ref = db.ref('landscape_cases');
+    const ref = db.ref('iplants_cases');
     await ref.set(casesData);
     res.json({ message: '資料更新成功！' });
   } catch (error) {
