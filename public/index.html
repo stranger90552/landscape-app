@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>iPlants 圖解植栽設計展覽館</title>
   
-  <!-- 💡 引入 Cloudinary Media Library 官方 SDK (方案 B) -->
+  <!-- 💡 引入 Cloudinary Media Library 官方 SDK -->
   <script src="https://media-library.cloudinary.com/global/all.js" type="text/javascript"></script>
 
   <style>
@@ -52,7 +52,38 @@
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; margin-bottom: 4px; font-weight: bold; color: #1b5e20; }
     .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
-    .plant-detail-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 12px; display: none; }
+
+    /* 🟢 植物圖片容器與 hover 浮凸效果 */
+    .plant-detail-img-container {
+      width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .plant-img-link {
+      display: block;
+      width: 100%;
+      height: 100%;
+      text-decoration: none;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+    }
+
+    .plant-img-link:hover {
+      transform: translateY(-4px); /* 向上浮凸 */
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22); /* 陰影加深 */
+      cursor: pointer;
+    }
+
+    .plant-detail-img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -84,9 +115,17 @@
     </div>
   </div>
 
+  <!-- 植物詳細資訊卡片 -->
   <div id="detail-card" class="overlay-card">
     <h3 id="detail-title" style="margin-top:0; color:#1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 8px; font-size: 18px;"></h3>
-    <img id="detail-img" class="plant-detail-img" src="" alt="植物照片">
+    
+    <!-- 🟢 圖片容器 (支援超連結與浮凸效果) -->
+    <div id="detail-img-container" class="plant-detail-img-container">
+      <a id="detail-img-link" href="#" target="_blank" rel="noopener noreferrer" class="plant-img-link" title="點擊開啟外部連結">
+        <img id="detail-img" class="plant-detail-img" src="" alt="植物照片">
+      </a>
+    </div>
+
     <p style="margin: 12px 0 8px 0;"><strong>📌 植物特徵：</strong><br><span id="detail-desc" style="display:inline-block; margin-top:4px; line-height:1.4;"></span></p>
     <p style="margin: 8px 0 16px 0;"><strong>☀️ 照顧指南：</strong><br><span id="detail-care" style="display:inline-block; margin-top:4px; line-height:1.4;"></span></p>
     <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
@@ -98,6 +137,7 @@
     </div>
   </div>
 
+  <!-- 植物編輯/新增 Modal -->
   <div id="plant-form-card" class="overlay-card">
     <h3 id="plant-form-title" style="margin-top:0; color:#1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 8px;">🌱 填寫植物資料</h3>
     <form id="plant-form">
@@ -137,6 +177,13 @@
           <button type="button" class="btn btn-cloud" onclick="openCloudinaryMediaLibrary('plant-img-input')">🖼️ 選擇 / 上傳圖片</button>
         </div>
       </div>
+
+      <!-- 🟢 圖 2 外部參考連結欄位 -->
+      <div class="form-group">
+        <label style="color: #2e7d32; font-weight: bold;">外部參考連結 (點圖片開啟)：</label>
+        <input type="url" id="plant-link-input" value="" placeholder="https://zh.wikipedia.org/wiki/..." />
+      </div>
+
       <div class="form-group">
         <label>相對座標 (%)：</label>
         <div style="display: flex; gap: 10px;">
@@ -151,6 +198,7 @@
     </form>
   </div>
 
+  <!-- 案例編輯 Modal -->
   <div id="case-modal-card" class="overlay-card">
     <h3 id="case-modal-title" style="margin-top:0; color:#1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 8px;">➕ 新增案例</h3>
     <form id="case-modal-form">
@@ -235,8 +283,8 @@
         bgImage: defaultBgImg,
         icon: "🏡",
         plants: [
-          { id: 0, name: "向日葵 (Sunflower)", icon: "🌸", image: "", x: 15, y: 25, desc: "碩大的金色花盤，具向光性。", care: "陽光充足，水分需求高。" },
-          { id: 1, name: "薰衣草 (Lavender)", icon: "🌿", image: "", x: 55, y: 25, desc: "紫色穗狀花序，富含芳香油。", care: "極度怕潮濕，土需極佳排水。" }
+          { id: 0, name: "向日葵 (Sunflower)", icon: "🌸", image: "", linkUrl: "https://zh.wikipedia.org/wiki/%E5%90%91%E6%97%A5%E8%91%B5", x: 15, y: 25, desc: "碩大的金色花盤，具向光性。", care: "陽光充足，水分需求高。" },
+          { id: 1, name: "薰衣草 (Lavender)", icon: "🌿", image: "", linkUrl: "https://zh.wikipedia.org/wiki/%E8%96%B0%E8%A1%A3%E8%8D%89", x: 55, y: 25, desc: "紫色穗狀花序，富含芳香油。", care: "極度怕潮濕，土需極佳排水。" }
         ]
       }
     ];
@@ -288,7 +336,6 @@
       }
     });
 
-    // 💡 呼叫 Cloudinary Media Library (方案 B)
     window.openCloudinaryMediaLibrary = async function(targetInputId) {
       if (!isAdmin) return alert('需要管理員權限！');
 
@@ -298,7 +345,6 @@
       try {
         const token = await user.getIdToken();
         
-        // 1. 向後端請求權限簽名
         const res = await fetch('/api/cloudinary-signature', {
           method: 'GET',
           headers: {
@@ -309,7 +355,6 @@
         const config = await res.json();
         if (!res.ok) throw new Error(config.error || '無法取得 Media Library 簽名');
 
-        // 2. 開啟 Cloudinary 媒體庫視窗
         window.cloudinary.openMediaLibrary({
           cloud_name: config.cloudName,
           api_key: config.apiKey,
@@ -517,7 +562,7 @@
             const rect = document.getElementById('map-area').getBoundingClientRect();
             
             tempX = parseFloat(Math.max(0, Math.min(100, (((moveEvent.clientX - rect.left) / rect.width) * 100))).toFixed(2));
-            tempY = parseFloat(Math.max(0, Math.min(100, (((moveEvent.clientY - rect.top) / rect.height) * 100))).toFixed(2));
+            tempY = parseFloat(Math.max(0, Math.min(100, (((moveEvent.clientY - top) / rect.height) * 100))).toFixed(2));
 
             elmnt.style.left = `${tempX}%`;
             elmnt.style.top = `${tempY}%`;
@@ -565,6 +610,7 @@
       document.getElementById('plant-name').value = "";
       document.getElementById('plant-icon').value = "🌱";
       document.getElementById('plant-img-input').value = "";
+      document.getElementById('plant-link-input').value = ""; // 🟢 清空新欄位
       document.getElementById('plant-desc').value = "";
       document.getElementById('plant-care').value = "";
       document.getElementById('plant-x').value = (((e.clientX - rect.left) / rect.width) * 100).toFixed(2);
@@ -584,17 +630,31 @@
       mapArea.classList.remove('adding-mode');
     }
 
+    // 🟢 顯示植物詳細頁並處理圖片與外部連結
     function showPlantDetail(pIdx) {
       currentPlantIndex = pIdx;
       const p = window.allCases[currentCaseIndex].plants[pIdx];
       document.getElementById('detail-title').textContent = `${p.icon || '🌱'} ${p.name}`;
       
+      const imgContainer = document.getElementById('detail-img-container');
       const imgEl = document.getElementById('detail-img');
+      const imgLinkEl = document.getElementById('detail-img-link');
+
       if (p.image) {
         imgEl.src = optimizeCloudinaryUrl(p.image);
-        imgEl.style.display = 'block';
+        imgContainer.style.display = 'block';
+
+        if (p.linkUrl) {
+          imgLinkEl.href = p.linkUrl;
+          imgLinkEl.style.pointerEvents = 'auto';
+          imgLinkEl.title = '點擊開啟外部連結';
+        } else {
+          imgLinkEl.removeAttribute('href');
+          imgLinkEl.style.pointerEvents = 'none';
+          imgLinkEl.title = '';
+        }
       } else {
-        imgEl.style.display = 'none';
+        imgContainer.style.display = 'none';
       }
 
       document.getElementById('detail-desc').textContent = p.desc || '暫無說明';
@@ -608,6 +668,7 @@
       document.getElementById('plant-name').value = p.name;
       document.getElementById('plant-icon').value = p.icon || '🌱';
       document.getElementById('plant-img-input').value = p.image || '';
+      document.getElementById('plant-link-input').value = p.linkUrl || ''; // 🟢 帶入外部連結
       document.getElementById('plant-desc').value = p.desc || '';
       document.getElementById('plant-care').value = p.care || '';
       document.getElementById('plant-x').value = p.x;
@@ -630,6 +691,7 @@
         name: document.getElementById('plant-name').value,
         icon: document.getElementById('plant-icon').value,
         image: document.getElementById('plant-img-input').value || '',
+        linkUrl: document.getElementById('plant-link-input').value || '', // 🟢 儲存外部連結
         desc: document.getElementById('plant-desc').value,
         care: document.getElementById('plant-care').value,
         x: parseFloat(document.getElementById('plant-x').value),
